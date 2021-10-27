@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Document</title>
+
+    {% load static %}
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block core_head %}
+    {% endblock core_head %}
+</head>
+<body>
+    {% block core_body %}
+
+    {% endblock core_body %}
+</body>
+{% block core_script %}
+{% endblock %}
+<script></script>
+</html>

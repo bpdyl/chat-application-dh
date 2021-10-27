@@ -1,0 +1,48 @@
+{% extends 'core/base.html' %}
+{% block core_body %}
+<div class="hero">
+    <div class="form-box">
+        <div class="button-box">
+            <div id="btn"></div>
+            <button type="button" style="color: white;" id="logintoggle" class="toggle-btn" onclick = "login()">Login</button>
+            <button type="button" class="toggle-btn" id="registertoggle" onclick="register()">Register</button>
+        </div>
+        <form id="login" action="" class="input-group">
+            <input type="text" class="input-field" name="username" id="loginusername">
+            <input type="password" class="input-field" name="password" id="loginpassword">
+            <input type="checkbox" class="check-box" name="" id="logincheckbox"><span>Remember Password</span>
+            <button type="submit" class="submit-btn">Login</button>
+        </form>
+        <form id="register" action="" class="input-group">
+            <input type="text" class="input-field" name="username" id="registerusername">
+            <input type="email" class="input-field" name="email" id="email">
+            <input type="password" class="input-field" name="password" id="registerpassword">
+            <input type="checkbox" class="check-box" name="" id="registercheckbox"><span>Remember Password</span>
+            <button type="submit" class="submit-btn">Register</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    var loginbtn = document.getElementById("login");
+    var registerbtn = document.getElementById("register");
+    var btn = document.getElementById("btn");
+
+    function register(){
+        loginbtn.style.left = "-400px";
+        registerbtn.style.left = "50px";
+        btn.style.left = "110px";
+        document.getElementById("registertoggle").style.color = "white";
+        document.getElementById("logintoggle").style.color = "black";
+    }
+
+    function login(){
+        loginbtn.style.left = "50px";
+        registerbtn.style.left = "450px";
+        btn.style.left = "0px";
+        document.getElementById("registertoggle").style.color = "black";
+        document.getElementById("logintoggle").style.color = "white";
+    }
+
+</script>
+{% endblock core_body %}
