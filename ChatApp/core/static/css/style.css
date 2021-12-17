@@ -13,8 +13,8 @@
     position: absolute;
 }
 .form-box{
-    width: 400px;
-    height: 490px;
+    width: 410px;
+    height: 550px;
     position: relative;
     margin: 6% auto;
     background: white;
@@ -43,7 +43,7 @@
     position: absolute;
     width: 110px;
     height: 100%;
-    background: linear-gradient(to right,rgb(18, 23, 39) ,rgb(160, 37, 172));
+    background: linear-gradient(to right,rgb(97, 127, 129) ,rgb(118,169,164));
     border-radius: 30px;
     transition: .5s;
 }
@@ -70,7 +70,7 @@
     cursor: pointer;
     display: block;
     margin: auto;
-    background: linear-gradient(to right,rgb(17, 12, 29) ,rgb(160, 41, 184));
+    background: linear-gradient(to right,rgb(97, 127, 129) ,rgb(118,169,164));
     border:0;
     color: whitesmoke;
     outline: none;
@@ -91,3 +91,6 @@ span{
 #register{
     left:450px;
 }
+/* .chat-window{
+    height: 500px;
+} */
