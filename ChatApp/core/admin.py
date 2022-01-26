@@ -11,7 +11,14 @@ class PrivateChatThreadAdmin(admin.ModelAdmin):
     model = PrivateChatThread
     list_display = ['first_user','second_user','is_active','get_connected_users']
 
-admin.site.register(GroupChatThread)
+class GroupChatThreadAdmin(admin.ModelAdmin):
+    model = GroupChatThread
+    list_display = ['group_name','image','group_description','admin','id','get_members']
+
+    # def get_members(self):
+    #     my_group = Group.objects.get(id = self.id)
+    #     return my_group.user_set
+admin.site.register(GroupChatThread,GroupChatThreadAdmin)
 admin.site.register(PrivateChatThread,PrivateChatThreadAdmin)
 admin.site.register(GroupChatMessage)
 admin.site.register(PrivateChatMessage,PrivateChatMessageAdmin)

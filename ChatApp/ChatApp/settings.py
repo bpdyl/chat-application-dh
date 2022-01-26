@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'core',
     'friends',
     'django_extensions',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [

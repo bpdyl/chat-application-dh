@@ -12,6 +12,11 @@
   display: none;
 }
 
+.members-result-box{
+  overflow-y: scroll;
+  max-height: 300px;
+}
+
 .sidebar{
   position: fixed;
   left: 0;
@@ -431,8 +436,7 @@
 
 .home-section{
   position: absolute;
-  background: #E5E5E5;
-  min-height: 100vh;
+  background: #ffffff;
   top: 0;
   left: 100px;
   width: 80%;
@@ -462,8 +466,7 @@
   height: auto;
   /* min-height: calc(100% - 93px);
   max-height: calc(100% - 93px); */
-  overflow-y: scroll;
-  overflow-x: hidden;
+  overflow: scroll;
   background: white;
 }
 
@@ -480,6 +483,8 @@
 }
 .messages ul li.sent img {
   margin: 6px 0 0 8px;
+  height: 30px;
+  width: 30px;
   float: right;
 }
 .messages ul li.sent p {
@@ -487,13 +492,26 @@
   color: #ffffff;
   float: right;
 }
+.messages ul li.sent p::after{
+  content: '\a';
+  white-space: inherit;
+}
+.clickable_cursor{
+  cursor: pointer;
+}
 .messages ul li.replies img {
   float: left;
+  height: 30px;
+  width: 30px;
   margin: 6px 8px 0 0;
 }
 .messages ul li.replies p {
   background: #e0dede;
   float: left;
+}
+.messages ul li.replies p::after{
+  content: '\a';
+  white-space: inherit;
 }
 .messages ul li img {
   width: 22px;

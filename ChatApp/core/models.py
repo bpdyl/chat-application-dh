@@ -59,18 +59,16 @@ class PrivateChatThread(models.Model):
         return is_removed
     
     def last_msg(self):
-        return self.message_set.all().last()
+        return self.private_message.all().last()
 
 
 class PrivateChatMessageManager(models.Manager):
     def by_private_thread(self, private_thread):
-        print(private_thread)
         qs = PrivateChatMessage.objects.filter(chat_thread=private_thread).order_by('-timestamp')
-        print(qs)
         return qs
 
 class PrivateChatMessage(models.Model):
-    chat_thread = models.ForeignKey(PrivateChatThread, null=True,blank=True, on_delete=models.CASCADE,related_name="private_thread")
+    chat_thread = models.ForeignKey(PrivateChatThread, null=True,blank=True, on_delete=models.CASCADE,related_name="private_message")
     sender= models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,related_name='msg_sender')
     message_content = models.TextField(unique=False,blank=False,null=True) 
     message_type = models.CharField(max_length=50,null=True,blank=True)
@@ -89,12 +87,18 @@ class GroupChatThread(Group):
     def __str__(self):
         return self.group_name
 
+    def add_members(self,group_chat,members):
+        for m in members:
+            group_chat.user_set.add(m)
+
     @property
     def gc_name(self):
         return "GroupChat-%s" % self.id
+    def get_members(self):
+        my_group = Group.objects.get(id = self.id)
+        return " , ".join([str(p) for p in my_group.user_set.all()])
 
-
-class GroupChatMessageManager:
+class GroupChatMessageManager(models.Manager):
     def by_gc_thread(self, gc_thread):
         qs = GroupChatMessage.objects.filter(gc_thread=gc_thread).order_by("-timestamp")
         return qs

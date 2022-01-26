@@ -5,6 +5,9 @@
 .not-visible{
     display: none;
 }
+.search-result-member{
+    cursor: pointer;
+}
 
 /* #results-box{
     padding: 0px 0px 15px 50px ;
@@ -43,4 +46,47 @@ width: 60px;
 height: 60px;
 border-radius: 50%;
 margin-bottom: 15px;
+}
+.add-member-label{
+    display: block;
+}
+.add-member{
+    overflow-y: scroll;
+}
+
+.AClass{
+    top:0;
+    right: 8px;
+    position: absolute;
+}
+.user-image-preview{
+    width: 70px;
+    height: 70px;
+    position:relative;
+    border-radius: 50%;
+    margin-bottom: 15px;  
+}
+.search-user-list{
+    margin: 0;
+    background-color: white;
+}
+.results-box{
+    background-color: white;
+}
+.search-user-list li a {
+    position: relative;
+    display: block;
+    padding: 15px 20px;
+    color: #202020;
+    -webkit-transition: all .4s;
+    transition: all .4s;
+    background-color: white;
+    border-top: 1px solid rgb(195, 206, 193);
+
+}
+.search-user-list li.active a ,.search-user-list li a:hover {
+    background: #eef3de;
+}
+.search-user-list li .chat-user-message {
+    font-size: 14px;
 }

@@ -1,8 +1,10 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import authenticate
+from django.contrib.auth.models import Group
 from django.forms import fields
 from accounts.models import CustomUser
+from core.models import GroupChatThread
 
 class UserRegistrationForm(UserCreationForm):
     # first_name = forms.CharField()
@@ -60,3 +62,16 @@ class ProfileUpdateForm(forms.ModelForm):
         if commit:
             user_account.save()
         return user_account
+
+
+class GroupChatCreationForm(forms.ModelForm):
+    class Meta:
+        model = GroupChatThread
+        fields = ('group_name','image','group_description')
+    # def clean_group_name(self):
+    #     group_name = self.cleaned_data['group_name'].lower()
+    #     try:
+    #         group_instance = GroupChatThread.objects.exclude(pk = self.instance.pk).get(grouup  = group_name)
+    #     except GroupChatThread.DoesNotExist:
+    #         return group_name
+    #     raise forms.ValidationError(f'Group name {group_name} is already taken.')
