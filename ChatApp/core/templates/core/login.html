@@ -1,4 +1,5 @@
 {% extends 'core/base.html' %}
+{% load static %}
 {% block core_body %}
 <div class="hero">
     <div class="form-box">
@@ -7,7 +8,7 @@
             <button type="button" style="color: white;" id="logintoggle" class="toggle-btn" onclick = "login()">Login</button>
             <button type="button" class="toggle-btn" id="registertoggle" onclick="register()">Register</button>
         </div>
-        <form id="login" action="{% url 'login' %}" method ="POST" class="input-group">
+        <form id="login-form" action="{% url 'login' %}" method ="POST" class="input-group">
             {% csrf_token %}
             <input type="text" class="input-field" name="username" id="loginusername" placeholder="Enter your email">
             <input type="password" class="input-field" name="password" id="loginpassword" placeholder="Enter your password">
@@ -27,7 +28,7 @@
 				{% endif %}
             <button type="submit" class="submit-btn">Login</button>
         </form>
-        <form id="register" action="{% url 'signup' %}" method ="POST" class="input-group">
+        <form id="register-form" action="{% url 'signup' %}" method ="POST" class="input-group">
             {% csrf_token %}
             <input type="text" class="input-field" name="first_name"  placeholder="First Name">
             <input type="text" class="input-field" name="last_name"  placeholder="Last Name">

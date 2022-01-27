@@ -26,7 +26,7 @@ urlpatterns = [
     path('account/',include('accounts.urls',namespace='accounts')),
     path('friends/',include('friends.urls',namespace='friends')),
 
-    path('',auth_views.LoginView.as_view(template_name='core/login.html',redirect_authenticated_user=True),name="login"),
+    path('',views.login_view,name="login"),
     path('register/', views.register_user, name="signup"),
     path("logout/", auth_views.LogoutView.as_view(next_page='login'), name="logout"),
 

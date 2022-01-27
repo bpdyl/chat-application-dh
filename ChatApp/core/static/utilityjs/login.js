@@ -1,6 +1,6 @@
 
-    var loginbtn = document.getElementById("login");
-    var registerbtn = document.getElementById("register");
+    var loginbtn = document.getElementById("login-form");
+    var registerbtn = document.getElementById("register-form");
     var btn = document.getElementById("btn");
 
     function register(){

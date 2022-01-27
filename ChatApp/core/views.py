@@ -1,4 +1,5 @@
 from concurrent.futures import thread
+from django.contrib import auth
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
 from django.core.serializers import serialize
@@ -13,7 +14,7 @@ from django.db.models.functions import Concat
 from datetime import datetime
 from accounts.models import CustomUser
 from friends.models import FriendList
-from .forms import GroupChatCreationForm, UserRegistrationForm
+from .forms import AccountAuthenticationForm, GroupChatCreationForm, UserRegistrationForm
 from .models import GroupChatThread, PrivateChatMessage, PrivateChatThread
 from itertools import chain
 from .serializers import PrivateChatThreadSerializer, GroupChatThreadSerializer
@@ -27,8 +28,40 @@ import pytz
 
 DEBUG = False
 
-def index(request):
-    return render(request,'core/login.html')
+def get_redirect_if_exists(request):
+    redirect = None 
+    if request.GET:
+        if request.GET.get("next"):
+            redirect = str(request.GET.get("next"))
+    return redirect
+
+
+def login_view(request):
+    context = {}
+    current_user = request.user
+    if current_user.is_authenticated:
+        return redirect("core:conversation")
+    destination = get_redirect_if_exists(request)
+    print("Destination",destination)
+    if request.POST:
+        form = AccountAuthenticationForm(request.POST)
+        if form.is_valid():
+            email = request.POST['email']
+            password = request.POST['password']
+            user = authenticate(email = email, password = password)
+            if user:
+                login(request,user)
+                if destination:
+                    return redirect(destination)
+                return redirect("core:conversation")
+        else:
+            context['login_form'] = form
+
+            print("Invalid login form")
+    else:
+        form = AccountAuthenticationForm()
+        context['login_form'] = form
+    return render(request,'core/login2.html',context)
 
 
 def register_user(request, *args, **kwargs):
@@ -56,12 +89,13 @@ def register_user(request, *args, **kwargs):
                     return redirect(destination_page)
                 return redirect('core:conversation')
             else:
-                context['user_registration_form'] = form
+                print("form is invalid")
+                context['reg_form'] = form
         
         else:
             form = UserRegistrationForm()
-            context['user_registration_form'] = form
-        return render(request, 'core/login.html',context)
+            context['reg_form'] = form
+        return render(request, 'core/signup.html',context)
 
 @login_required
 def chat_section(request):
@@ -309,8 +343,9 @@ def update_group_chat_name(request,*args,**kwargs):
         change_group_name = request.POST.get("change_group_name")
         thread_id = request.POST.get("thread_id")
         print(change_group_name,thread_id)
-        GroupChatThread.objects.filter(id = thread_id).update(group_name = change_group_name)
         this_group_chat= GroupChatThread.objects.get(id = thread_id)
+        this_group_chat.group_name = change_group_name
+        this_group_chat.save()
         new_group_chat_name = this_group_chat.group_name
         room_group_name = f'group_chat_{thread_id}'
         consumer_method_name = 'chat_name_changed'

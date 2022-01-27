@@ -6,6 +6,19 @@ from django.forms import fields
 from accounts.models import CustomUser
 from core.models import GroupChatThread
 
+
+class AccountAuthenticationForm(forms.ModelForm):
+    # password = forms.CharField(label = 'Password',widget=forms.PasswordInput)
+    class Meta:
+        model = CustomUser
+        fields = ('email','password')
+    def clean(self):
+        if self.is_valid():
+            email = self.cleaned_data['email']
+            password = self.cleaned_data['password']
+            if not authenticate(email = email, password = password):
+                raise forms.ValidationError(f"Invalid login credentials")
+
 class UserRegistrationForm(UserCreationForm):
     # first_name = forms.CharField()
     # last_name = forms.CharField()

@@ -7,8 +7,8 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
-    <!-- <link rel="stylesheet" href="{% static 'bootstrap/css/bootstrap.min.css' %}" type="text/css"> -->
+
+
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="{% static 'jquery/jquery.min.js' %}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
@@ -27,15 +27,17 @@
             <script src="{% static 'package/plugins/thumbnail/lg-thumbnail.umd.js' %}"></script>
             <script src="{% static 'package/plugins/video/lg-video.umd.js' %}"></script>
             <script src="{% static 'package/plugins/zoom/lg-zoom.umd.js' %}"></script>
+    
     {% block core_head %}
     {% endblock core_head %}
 </head>
 <body>
     {% block core_body %}
-    <script src="{% static 'utilityjs/login.js' %}"></script>
     {% endblock core_body %}
 </body>
 {% block core_script %}
+<script src="{% static 'utilityjs/login.js' %}"></script>
+
 {% endblock %}
 
 </html>
