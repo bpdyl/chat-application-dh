@@ -765,6 +765,8 @@
 
         <!-- JAVASCRIPT -->
         <script src="{% static 'utilityjs/base.js' %}"></script>
+        <script src="https://unpkg.com/localbase/dist/localbase.dev.js"></script>
+        <script src="{% static 'utilityjs/db.js' %}"></script>
         <script async="async" defer="defer" src="{% static 'utilityjs/groupchat.js' %}" 
         {% if user.is_authenticated %} data-authenticated="true" {% endif %}></script>
         <script src="{% static 'utilityjs/searchuser.js' %}"></script>

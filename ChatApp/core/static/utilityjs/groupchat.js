@@ -137,6 +137,8 @@ function onReceivingGroupChatInfo(group_chat_info){
     document.getElementById('id_other_username').innerHTML = group_chat_info['group_name']
     document.getElementById('topbar_otheruser_name').innerHTML = group_chat_info['group_name'];
     document.getElementById('topbar_otheruser_name').href ='#';
+    document.getElementById('topbar_otheruser_name').removeAttribute('data-other_user_id');
+    document.getElementById('topbar_otheruser_name').removeAttribute('data-pvt_thread_id');
     document.getElementById('other_user_info').href ='#';
     document.getElementById('other_user_profile_image').classList.remove("d-none");
     document.getElementById('sidebar_simplebar_about').innerHTML = "Customize Chat";

@@ -55,9 +55,89 @@ function validateText(str)
 	}
 	
 	function appendChatMessage(data,maintainPosition,isNewMessage){
+		console.log("append chat message ko data",data);
+		msg_id= data['msg_id'];
+		(async() => {
+
+		var temp_messages;
+
+		temp_messages = await getMessagesById(msg_id);
+		console.log("append chat message ko temp",temp_messages)
+		message_content = temp_messages['message_content'];
+		user_id = temp_messages['user_id'];
+		console.log("I am temp msg",temp_messages)
+		sender_fname = temp_messages['first_name'];
+		sender_lname = temp_messages['last_name'];
+		msg_timestamp = data['natural_timestamp'];
+		profile_image = temp_messages['profile_image'];
+		username = temp_messages['username'];
+		
+		//get the parent ul element
+		var chat_history = document.getElementById('id_chat_log');
+		
+		//create the child elements
+		var newMessageBlock = document.createElement('div');
+		var conversation_list_div = document.createElement('div');
+		var chat_avatar_div = document.createElement('div');
+		var user_chat_content_div = document.createElement('div');
+		var ctext_wrap_div = document.createElement('div');
+		var ctext_wrap_content_div = document.createElement('div');
+		var new_message_content = document.createElement('p');
+		var message_timestamp_p = document.createElement('p');
+		var conversation_name_div = document.createElement('div');
+	
+		//add class to every created element
+		conversation_list_div.classList.add('conversation-list');
+		chat_avatar_div.classList.add('chat-avatar');
+		user_chat_content_div.classList.add('user-chat-content');
+		ctext_wrap_div.classList.add('ctext-wrap');
+		ctext_wrap_content_div.classList.add('ctext-wrap-content');
+		new_message_content.classList.add('mb-0')
+		message_timestamp_p.classList.add('chat-time','mb-0');
+		conversation_name_div.classList.add('conversation_name_div');
+		var profileImage = document.createElement('img');
+		profileImage.dataset.sender_id = user_id;
+		profileImage.classList.add('clickable_cursor');
+		profileImage.src = profile_image;
+		profileImage.addEventListener('click',(e)=>{
+			selectUser(profileImage.dataset.sender_id);
+		});
+		var sender_profile_image_id = "sender_profile_image_"+msg_id;
+		profileImage.id = sender_profile_image_id;
+		//rewrite the content of the created element message,timestamp and name
+		new_message_content.innerHTML = validateText(message_content) ;
+		message_timestamp_p.innerHTML = msg_timestamp
+		conversation_name_div.innerHTML = sender_fname +" "+ sender_lname
+		//check if the sender is the logged in user
+			//append elements in order
+			ctext_wrap_content_div.append(new_message_content,message_timestamp_p);
+			ctext_wrap_div.appendChild(ctext_wrap_content_div);
+			user_chat_content_div.append(ctext_wrap_div,conversation_name_div);
+			chat_avatar_div.appendChild(profileImage);
+			conversation_list_div.append(chat_avatar_div,user_chat_content_div)
+			newMessageBlock.appendChild(conversation_list_div)
+		if(user_id == logged_user.id && username == logged_user.username){
+			// new_message_content.classList.add('')
+			newMessageBlock.classList.add('sent','right');
+	
+		}else{
+			// new_message_content.classList.add('')
+			newMessageBlock.classList.add('replies');
+		}
+		//append message based on if it is instant message or the whole chunk of previous messages
+	chat_history.appendChild(newMessageBlock);
+	if(!maintainPosition){
+		scrollToBottom();
+	}
+
+	})()
+
+	}
+
+	function appendNewChatMessage(data,maintainPosition,isNewMessage){
 		msg_id= data['msg_id'];
 		user_id = data['user_id'];
-		message_content = data['message_content'];
+		message_content = data['message_content']
 		sender_fname = data['first_name'];
 		sender_lname = data['last_name'];
 		msg_timestamp = data['natural_timestamp'];

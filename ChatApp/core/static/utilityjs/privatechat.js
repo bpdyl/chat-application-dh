@@ -17,7 +17,7 @@ shouldScroll = chat_section.scrollTop + chat_section.clientHeight === chat_secti
 
 var privateChatWebSocket = null;
 var friendId = null;
-console.log(logged_user)
+console.log("this is loggeduser",logged_user)
 
 
 var [first_thread_id,threadType] = getIDs();
@@ -97,8 +97,15 @@ function webSocketSetup(user_id){
 
         if(data.command == "private_chat"){
             console.log("chat message gayera aayo");
+            (async() => {
+            await addToDatabase(data);
+        })()
             console.log(data);
-            appendChatMessage(data,false,true);
+            let active_thread_id = document.getElementById('topbar_otheruser_name').dataset.pvt_thread_id;
+            
+            if(data.private_thread_id == active_thread_id){
+            appendNewChatMessage(data,false,true);
+            }
         window.scrollTo(0,chat_section.scrollHeight)
 
         }
@@ -109,7 +116,8 @@ function webSocketSetup(user_id){
         if(data.user_info){
 
             my_info = JSON.parse(data['user_info'])
-            onReceivingUserInfo(my_info);
+            var private_thread_id = data['private_thread_id']
+            onReceivingUserInfo(my_info,private_thread_id);
 
         }
         if(data.messages_response){
@@ -160,19 +168,26 @@ chat_message_send_btn.onclick = function(e){
     console.log("this is enter pressed with value")
         e.preventDefault();
         const chat_message = $('#chat_message_input').val().trim();
+        let send_to = document.getElementById('topbar_otheruser_name').dataset.other_user_id
+        console.log("This is send to",send_to)
         if(chat_message == ''){
             console.log("empty message");
             return;
         }
+        console.log("sent_by",logged_user['id']);
+
         console.log("client ko message",chat_message)
         if(privateChatWebSocket.readyState == WebSocket.OPEN){
         privateChatWebSocket.send(
             JSON.stringify({
                 "command": "private_chat",
                 "message": chat_message,
-                "message_type": 'text'
+                "message_type": 'text',
+                "send_to":send_to,
+                "sent_by":logged_user['id'],
             })
         );
+
         }else if(groupChatWebSocket.readyState == WebSocket.OPEN){
             groupChatSend(chat_message);
         }
@@ -209,12 +224,15 @@ function getPrivateThreadMessages(firstAttempt=false){
 
 
 
-function onReceivingUserInfo(user_info){
+function onReceivingUserInfo(user_info,pvt_thread_id){
     document.getElementById('id_other_username').innerHTML = user_info['first_name'] +" "+user_info['last_name'];
     document.getElementById('topbar_otheruser_name').innerHTML = user_info['first_name'] +" "+user_info['last_name'];
     document.getElementById('other_user_profile_image').classList.remove("d-none");
     user_profile_url = myurl+"/account/profile/"+user_info['id'];
     document.getElementById('topbar_otheruser_name').href = user_profile_url;
+    document.getElementById('topbar_otheruser_name').dataset.other_user_id = user_info['id'];
+    document.getElementById('topbar_otheruser_name').dataset.pvt_thread_id = pvt_thread_id;
+
     document.getElementById('other_user_info').href =user_profile_url;
     document.getElementById('sidebar_simplebar_about').innerHTML = "About";
     document.getElementById('aboutprofile').innerHTML = `

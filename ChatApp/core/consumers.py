@@ -19,30 +19,42 @@ from friends.models import FriendList
 
 
 class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
-    
     async def connect(self):
-        print("private chat consumer connect: " +str(self.scope['user']))
-        self.me = self.scope.get('user')
+        user = self.scope['user']
         await self.accept()
+        self.room_name = f'private_thread_{user.id}'
+        self.me = self.scope.get('user')
         self.other_username = self.scope['url_route']['kwargs']['friendId']
         print("yo other user",self.other_username)
         self.other_user = await sync_to_async(CustomUser.objects.get)(id= self.other_username)
         self.private_thread = await sync_to_async(PrivateChatThread.objects.create_room_if_none)(self.me, self.other_user)
-        self.room_name = f'private_chat_{self.private_thread.id}'
-        print("private chat thread is ",self.room_name)
-
-        await sync_to_async(self.private_thread.connect)(self.me)
-
-        print("added myself")
-
         await self.channel_layer.group_add(
             self.room_name,
-            self.channel_name
+            self.channel_name,
         )
+    # async def connect(self):
+    #     print("private chat consumer connect: " +str(self.scope['user']))
+    #     self.me = self.scope.get('user')
+    #     await self.accept()
+    #     self.other_username = self.scope['url_route']['kwargs']['friendId']
+    #     print("yo other user",self.other_username)
+    #     self.other_user = await sync_to_async(CustomUser.objects.get)(id= self.other_username)
+    #     self.private_thread = await sync_to_async(PrivateChatThread.objects.create_room_if_none)(self.me, self.other_user)
+    #     self.room_name = f'private_chat_{self.private_thread.id}'
+    #     print("private chat thread is ",self.room_name)
+
+    #     await sync_to_async(self.private_thread.connect)(self.me)
+
+    #     print("added myself")
+
+    #     await self.channel_layer.group_add(
+    #         self.room_name,
+    #         self.channel_name
+    #     )
         
 
-        if self.me.is_authenticated:
-            await update_user_incr(self.me)
+    #     if self.me.is_authenticated:
+    #         await update_user_incr(self.me)
 
     async def receive_json(self, content, **kwargs):
         command = content.get("command",None)
@@ -63,13 +75,20 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
             elif command == "private_chat":
                 message = content.get("message")
                 message_type = content['message_type']
+                sent_by_id = content['sent_by']
+                send_to_id = content['send_to']
+                sent_by_user = await self.get_user_object(sent_by_id)
+                send_to_user = await self.get_user_object(send_to_id)
+                if not sent_by_user:
+                    print("Error:: sent by user is incorrect")
+                if not send_to_user:
+                    print("Error:: send to user is incorrect")
+                other_user_chat_room = f'private_thread_{send_to_id}'
                 print("yo message",message)
-                connected_users =await get_connected_users(self.private_thread)
-                print(connected_users)
+
                 self.newmsg = await sync_to_async(PrivateChatMessage.objects.create)(
                 chat_thread = self.private_thread,
-                sender = self.me,
-                message_content = message,
+                sender = self.scope['user'],
                 message_type = message_type,
                 )
 
@@ -86,7 +105,29 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
                         "user_id": self.newmsg.sender.id,
                         "status": self.newmsg.sender.status,
                         "timestamp": timezone.localtime(self.newmsg.timestamp),
-                        "command": command  
+                        "command": command,
+                        "send_to":send_to_id,
+                        "sent_by":sent_by_id,
+                        "thread_id":self.private_thread.id,  
+                    }
+                    
+                )
+                await self.channel_layer.group_send(
+                    other_user_chat_room,{
+                        "type": "websocket_message",
+                        "text": message,
+                        "id": self.newmsg.id,
+                        "username": self.newmsg.sender.username,
+                        "first_name":self.newmsg.sender.first_name,
+                        "last_name":self.newmsg.sender.last_name,
+                        "profile_image": self.newmsg.sender.profile_image.url,
+                        "user_id": self.newmsg.sender.id,
+                        "status": self.newmsg.sender.status,
+                        "timestamp": timezone.localtime(self.newmsg.timestamp),
+                        "command": command,
+                        "send_to":send_to_id,
+                        "sent_by":sent_by_id, 
+                        "thread_id":self.private_thread.id,  
                     }
                     
                 )
@@ -158,6 +199,9 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
             'last_name':event['last_name'],
             'profile_image': event['profile_image'],
             'user_id': event['user_id'],
+            'send_to': event['send_to'],
+            'sent_by':event['sent_by'],
+            'private_thread_id':event['thread_id']
         }))
         
     async def websocket_typing(self, event):
@@ -185,6 +229,7 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
         await self.send_json(
             {
                 'user_info': json.dumps(user_info),
+                'private_thread_id':self.private_thread.id,
             },
         )
 
@@ -238,7 +283,14 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
             errorData['message'] = e.message
             await self.send_json(errorData)
         return
-
+    @database_sync_to_async
+    def get_user_object(self,user_id):
+        qs = CustomUser.objects.filter(id=user_id)
+        if qs.exists():
+            obj = qs.first()
+        else:
+            obj = None
+        return obj
 @database_sync_to_async
 def get_thread_or_error(thread_id, user):
     try:
