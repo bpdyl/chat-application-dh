@@ -65,8 +65,8 @@ function validateText(str)
 		encrypted_message_content = temp_messages['message_content'];
 		message_content = decrypt(encrypted_message_content,key);
 		user_id = temp_messages['user_id'];
-		sender_fname = temp_messages['first_name'];
-		sender_lname = temp_messages['last_name'];
+		sender_fname = data['first_name'];
+		sender_lname = data['last_name'];
 		msg_timestamp = data['natural_timestamp'];
 		profile_image = temp_messages['profile_image'];
 		username = temp_messages['username'];
@@ -262,7 +262,7 @@ function update_thread_list_view(data){
 		console.log("private chat")
 		if(thread.first_user.username ===logged_user['username']){
 		var myhtml = `<li class="myclass">
-						<a onclick="onSelectFriend('${thread.second_user.id}',this);"  data-userId="${thread.second_user.id}" id="id_friend_list_${thread.second_user.id}">
+						<a onclick="onSelectFriend('${thread.second_user.id}',this);" data-threadType="private-thread"  data-userId="${thread.second_user.id}" id="id_friend_list_${thread.second_user.id}">
 							<div class="d-flex">                            
 								<div class="chat-user-img online align-self-center me-3 ms-0">
 									<img id="id_friend_img_${thread.second_user.id}" src="${thread.second_user.profile_image}" class="rounded-circle avatar-sm" alt="">
@@ -279,8 +279,8 @@ function update_thread_list_view(data){
 					</li>`
 			ulist.innerHTML += myhtml
 		}else{
-		var myhtml = `<li class="myclass active">
-						<a onclick="onSelectFriend('${thread.first_user.id}',this);"  data-userId="${thread.first_user.id}" id="id_friend_list_${thread.second_user.id}">
+		var myhtml = `<li class="myclass">
+						<a onclick="onSelectFriend('${thread.first_user.id}',this);" data-threadType="private-thread" data-userId="${thread.first_user.id}" id="id_friend_list_${thread.first_user.id}">
 							<div class="d-flex">                            
 								<div class="chat-user-img online align-self-center me-3 ms-0">
 									<img id="id_friend_img_${thread.first_user.id}" src="${thread.first_user.profile_image}" class="rounded-circle avatar-sm" alt="">
@@ -300,7 +300,7 @@ function update_thread_list_view(data){
 	}else{
 		console.log("group chat")
 		var myhtml = `<li class="myclass">
-						<a onclick="onSelectGroup('${thread.id}',this);"  data-userId="${thread.id}" id="id_friend_list_${thread.id}">
+						<a onclick="onSelectGroup('${thread.id}',this);" data-threadType="group-thread" data-userId="${thread.id}" id="id_friend_list_${thread.id}">
 							<div class="d-flex">                            
 								<div class="chat-user-img online align-self-center me-3 ms-0">
 									<img id="id_friend_img_${thread.id}" src="${thread.image}" class="rounded-circle avatar-sm" alt="">

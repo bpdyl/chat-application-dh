@@ -120,7 +120,6 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
             if command == "join":
                 shared_key = await sync_to_async(generate_shared_keys)(self.scope['user'],self.other_user)
                 my_keys = json.loads(shared_key)
-                print("i am my keys",my_keys)
                 await self.channel_layer.group_send(
                         self.room_name,
                         {
@@ -472,9 +471,9 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
                 message_type = message_type,
                 )
 
-                print("room name",self.room_name)
+                print("room name",self.room_group_name)
                 await self.channel_layer.group_send(
-                    self.room_name,{
+                    self.room_group_name,{
                         "type": "websocket_message",
                         "text": message,
                         "id": self.newmsg.id,

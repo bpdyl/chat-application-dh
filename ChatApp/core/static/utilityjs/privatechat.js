@@ -40,6 +40,7 @@ function onSelectFriend(userId,ele){
     console.log("onSelectFriend: " + userId)
     createOrReturnPrivateChat(userId)
     removeActiveThreadFriend();
+    $(".user-chat").addClass("user-chat-show");
     setActiveThreadFriend(userId);
 
 
@@ -189,7 +190,6 @@ chat_message_send_btn.onclick = function(e){
         const chat_message = $('#chat_message_input').val().trim();
          s_key = document.getElementById('topbar_otheruser_name').dataset.val;
 
-        const encryptedMsg = encrypt(chat_message,s_key);
         // alert(encryptedMsg);
         let send_to = document.getElementById('topbar_otheruser_name').dataset.other_user_id
         console.log("This is send to",send_to)
@@ -200,6 +200,9 @@ chat_message_send_btn.onclick = function(e){
         console.log("sent_by",logged_user['id']);
 
         console.log("client ko message",chat_message)
+        if(thread_distinguish.innerHTML == 'private_thread'){
+        const encryptedMsg = encrypt(chat_message,s_key);
+
         if(privateChatWebSocket!=null){
             if(privateChatWebSocket.readyState == WebSocket.OPEN){
             privateChatWebSocket.send(
@@ -212,10 +215,13 @@ chat_message_send_btn.onclick = function(e){
                 })
             );
             }
-        }else if(groupChatWebSocket!=null){
-        if(groupChatWebSocket.readyState == WebSocket.OPEN){
-            groupChatSend(chat_message);
         }
+    }else if(thread_distinguish.innerHTML == 'group_thread'){
+            if(groupChatWebSocket!=null){
+            if(groupChatWebSocket.readyState == WebSocket.OPEN){
+                groupChatSend(chat_message);
+            }
+    }
     }
         chat_message_input.value = '';
 }
@@ -307,8 +313,14 @@ var onReceivingMessagesResponse = (messages,new_page_number,firstAttempt)=>{
 
 var chatHistory = document.querySelector('#id_chat_log');
 function chatHistoryScroll(e){
+    
     if((Math.abs(chatHistory.scrollTop) + 2) >= (chatHistory.scrollHeight - chatHistory.offsetHeight)){
+        if(thread_distinguish.innerHTML == 'private_thread'){
         getPrivateThreadMessages(false);
+        }else if(thread_distinguish.innerHTML == 'group_thread'){
+            console.log("get group thread messages call hunu parne");
+            getGroupThreadMessages(false);
+        }
     }
 }
 

@@ -5,7 +5,10 @@ function onSelectGroup(threadId,ele){
     console.log("group select: " + threadId)
     // createOrReturnPrivateChat(threadId)
     removeActiveThreadFriend();
+
     setActiveThreadFriend(threadId);
+    $(".user-chat").addClass("user-chat-show");
+
     groupChatWebSocketSetup(threadId);
 
 
@@ -55,6 +58,10 @@ function groupChatWebSocketSetup(thread_id){
 
         if (data.joining_room){
             console.log("Joining room " + data.joining_room);
+            var secret_key = document.getElementById('topbar_otheruser_name');
+            secret_key.removeAttribute('data-val');
+            thread_distinguish.innerHTML = data.thread_type;
+
             getGroupChatInfo();
             showLoader();
             getGroupThreadMessages(true);
