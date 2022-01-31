@@ -5,7 +5,6 @@ from django.db.models.deletion import CASCADE
 from django.utils import timezone
 from django.db.models import signals
 from django.dispatch import receiver
-from accounts.models import CustomUser
 from ChatApp.broadcast import perform_broadcast
 from ChatApp.settings import AUTH_USER_MODEL
 from django.db.models import Count
@@ -158,6 +157,8 @@ class FriendRequestThread(TrackingModel):
 
 @receiver([signals.post_save],sender=FriendRequest)
 def notify_group(sender, instance, **kwargs):
+    from accounts.models import CustomUser
+
     room_name_postfix = instance.receiver.username
     group_name = "friend_request_"+room_name_postfix
     consumer_method_type = 'friend_request_operations'

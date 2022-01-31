@@ -3,7 +3,12 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import ugettext_lazy as _
 import os
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from PIL import Image
+from friends.models import FriendList
+from core.DoubleDiffie import DiffieHellman
+from core.models import Keys
 
 # Create your models here.
 
@@ -91,3 +96,19 @@ class CustomUser(AbstractUser):
             return self.profile_image.url
         else:
             return "/media/user_photos/nouser.jpg"
+
+@receiver(post_save, sender=CustomUser)
+def user_save(sender, instance, **kwargs):
+    FriendList.objects.get_or_create(user=instance)
+
+# @receiver([signals.post_save],sender=CustomUser)
+# def store_keys(sender, instance, **kwargs):
+#     data = {}
+#     dh = DiffieHellman()
+#     private_key,public_key= dh.get_private_key(), dh.generate_public_key()
+#     second_private_key = dh.get_second_private_key()
+#     data['private_key'] = private_key
+#     data['second_private_key'] = second_private_key
+#     data['public_key'] = public_key
+#     # return JsonResponse(data)
+#     Keys(keys_owner = instance,private_key = private_key,second_private_key = second_private_key,public_key = public_key)

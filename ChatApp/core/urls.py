@@ -17,5 +17,7 @@ urlpatterns = [
     path('update_group_chat_name/',views.update_group_chat_name,name= 'update-group-chat-name'),
     path('update_group_chat_photo/',views.update_group_chat_photo,name= 'update-group-chat-photo'),
     path('add_new_members/',views.add_members_to_chat,name='add-new-members'),
+    # path('generate_keys/',views.generate_keys,name='generate-keys'),
+    # path('generate_shared_keys/',views.generate_shared_keys,name='generate-shared-keys'),
 
 ]

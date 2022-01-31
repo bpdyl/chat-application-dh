@@ -92,6 +92,7 @@ def search_user(request):
             print("Empty inserted")
             result = "No user found ..."
         else:
+            
             print(search_query)
             user_obj = CustomUser.objects.annotate(
                 full_name=Concat('first_name', V(' '), 'last_name')

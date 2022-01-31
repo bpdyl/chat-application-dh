@@ -7,6 +7,7 @@ const chat_message_input = document.getElementById('chat_message_input')
 
 
 
+
 const thread_distinguish = document.getElementById('thread_distinguish');
 
 chat_message_input.focus();
@@ -57,7 +58,11 @@ function closeWebSocket(){
 function webSocketSetup(user_id){
     console.log("web socket for "+user_id)
     friendId = user_id
-    closegroupWebSocket();
+    // closegroupWebSocket();
+    clearChat();
+    showLoader();
+    setPageNumber("1");
+    disableChatHistoryScroll();
     closeWebSocket();
     privateChatWebSocket = new WebSocket(
         'ws://'
@@ -85,6 +90,10 @@ function webSocketSetup(user_id){
         if (data.joining_room){
             console.log("Joining room " + data.joining_room);
             thread_distinguish.innerHTML = data.thread_type
+            var secret_key = document.getElementById('topbar_otheruser_name');
+            // secret_key.setAttribute('id','secret_key_id');
+            secret_key.dataset.val = data['my_keys']['final_shared_key'];
+            // $('#topbar_otheruser_name').append(secret_key);
             console.log(thread_distinguish.textContent);
             getUserInfo();
             showLoader();
@@ -96,6 +105,15 @@ function webSocketSetup(user_id){
 
 
         if(data.command == "private_chat"){
+            $.ajax({
+                type: "GET",
+      
+                url: window.location.origin+'/chat/chat_thread_list/',
+                timeout: 5000,
+                success: (data) => {
+                    update_thread_list_view(data);
+                }
+            });
             console.log("chat message gayera aayo");
             (async() => {
             await addToDatabase(data);
@@ -167,7 +185,12 @@ $('#chat_message_input').keypress(function(e){
 chat_message_send_btn.onclick = function(e){
     console.log("this is enter pressed with value")
         e.preventDefault();
+        
         const chat_message = $('#chat_message_input').val().trim();
+         s_key = document.getElementById('topbar_otheruser_name').dataset.val;
+
+        const encryptedMsg = encrypt(chat_message,s_key);
+        // alert(encryptedMsg);
         let send_to = document.getElementById('topbar_otheruser_name').dataset.other_user_id
         console.log("This is send to",send_to)
         if(chat_message == ''){
@@ -177,20 +200,23 @@ chat_message_send_btn.onclick = function(e){
         console.log("sent_by",logged_user['id']);
 
         console.log("client ko message",chat_message)
-        if(privateChatWebSocket.readyState == WebSocket.OPEN){
-        privateChatWebSocket.send(
-            JSON.stringify({
-                "command": "private_chat",
-                "message": chat_message,
-                "message_type": 'text',
-                "send_to":send_to,
-                "sent_by":logged_user['id'],
-            })
-        );
-
-        }else if(groupChatWebSocket.readyState == WebSocket.OPEN){
+        if(privateChatWebSocket!=null){
+            if(privateChatWebSocket.readyState == WebSocket.OPEN){
+            privateChatWebSocket.send(
+                JSON.stringify({
+                    "command": "private_chat",
+                    "message": encryptedMsg,
+                    "message_type": 'text',
+                    "send_to":send_to,
+                    "sent_by":logged_user['id'],
+                })
+            );
+            }
+        }else if(groupChatWebSocket!=null){
+        if(groupChatWebSocket.readyState == WebSocket.OPEN){
             groupChatSend(chat_message);
         }
+    }
         chat_message_input.value = '';
 }
 

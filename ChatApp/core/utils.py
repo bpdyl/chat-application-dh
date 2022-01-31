@@ -22,6 +22,7 @@ def timestamp_encoder(timestamp):
     else:
         str_time = datetime.strftime(timestamp, "%m/%d/%Y")
         ts = f"{str_time}"
+        
 
     return str(ts)
 
@@ -41,6 +42,7 @@ class LazyPrivateThreadMessageEncodeer(Serializer):
 class LazyGroupThreadMessageEncodeer(Serializer):
     def get_dump_object(self, obj):
         dump_object = {}
+        dump_object.update({'msg_type':MSG_TYPE_NORMAL})
         dump_object.update({'msg_id': str(obj.id)})
         dump_object.update({'user_id':str(obj.sender.id)})
         dump_object.update({'username': str(obj.sender.username)})

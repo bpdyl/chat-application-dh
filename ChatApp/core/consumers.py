@@ -2,6 +2,7 @@ from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from django.core.serializers import serialize
+from django.http.response import JsonResponse
 from django.utils import timezone
 from django.db.models import F
 import json
@@ -11,11 +12,67 @@ from accounts.models import CustomUser
 from core.exceptions import ClientError
 from .utils import CHAT_NAME_CHANGED, CHAT_PHOTO_CHANGED, DEFAULT_PAGE_SIZE, MSG_TYPE_ADDED, MSG_TYPE_NORMAL, MSG_TYPE_REMOVED, LazyGroupThreadMessageEncodeer, timestamp_encoder,LazyPrivateThreadMessageEncodeer
 from django.core.paginator import Paginator
+from .DoubleDiffie import DiffieHellman
 
 from .models import (
-    PrivateChatThread,PrivateChatMessage,GroupChatThread,GroupChatMessage
+    Keys, PrivateChatThread,PrivateChatMessage,GroupChatThread,GroupChatMessage
 )
 from friends.models import FriendList
+
+
+
+
+
+def generate_test_keys():
+    data = {}
+    bob = DiffieHellman()
+    alice = DiffieHellman()
+    private_key_bob,public_key_bob = bob.get_private_key(), bob.generate_public_key()
+    private_key_alice,public_key_alice = alice.get_private_key(), alice.generate_public_key()
+    alice_shared_key = alice.generate_shared_key(public_key_bob)
+    bob_shared_key = bob.generate_shared_key(public_key_alice)
+    print("ma bob shared key",bob_shared_key)
+    print("ma alice shared key",alice_shared_key)
+    bob_second_public_key = bob.generate_second_public_key(bob_shared_key)
+    alice_second_public_key = alice.generate_second_public_key(alice_shared_key)
+    bob_second_shared_key = bob.generate_second_shared_key(alice_second_public_key,bob_shared_key)
+    alice_second_shared_key = alice.generate_second_shared_key(bob_second_public_key,alice_shared_key)
+    data['private_key_bob'] = private_key_bob
+    data['public_key_bob'] = public_key_bob
+    data['private_key_alice'] = private_key_alice
+    data['public_key_bob'] = public_key_alice
+    data['shared_key'] = alice_second_shared_key
+    return json.dumps(data)
+    
+# def generate_shared_key():
+#     try:
+#         local_private_key = request.args.get("local_private_key")
+#         remote_public_key = request.args.get("remote_public_key")
+#         shared_key = DiffieHellman.gen_shared_key_static(
+#             local_private_key, remote_public_key
+#         )
+#     except:
+#          return JsonResponse({"message": "Invalid public key"})
+
+def generate_shared_keys(current_user,target_user):
+    try:
+        data = {}
+        current_user_keys = Keys.objects.get(keys_owner = current_user)
+        target_user_keys = Keys.objects.get(keys_owner = target_user)
+        local_private_key = current_user_keys.private_key
+        local_second_private_key = current_user_keys.second_private_key
+        remote_second_private_key = target_user_keys.second_private_key
+        remote_public_key = target_user_keys.public_key
+        first_shared_key = DiffieHellman.generate_shared_key_static(local_private_key,remote_public_key)
+        second_remote_public_key = DiffieHellman.generate_second_public_key_static(remote_second_private_key,first_shared_key)
+        final_shared_key = DiffieHellman.generate_second_shared_key_static(local_second_private_key,second_remote_public_key,first_shared_key)
+
+        data['final_shared_key'] = final_shared_key
+
+        return json.dumps(data)
+    except:
+        raise ClientError(204,"Invalid public key")
+        
 
 
 class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
@@ -61,16 +118,20 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
         print("yo command ho ",command)
         try:
             if command == "join":
+                shared_key = await sync_to_async(generate_shared_keys)(self.scope['user'],self.other_user)
+                my_keys = json.loads(shared_key)
+                print("i am my keys",my_keys)
                 await self.channel_layer.group_send(
                         self.room_name,
                         {
                             "type": "websocket_join",
                             "join":str(self.private_thread.id),
                             "thread_type":"private_thread",
+                            "my_keys":my_keys,
                         }
                     )
 
-
+            
 
             elif command == "private_chat":
                 message = content.get("message")
@@ -182,6 +243,7 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
         await self.send_json({
             'joining_room': str(self.private_thread.id),
             'thread_type': event['thread_type'],
+            'my_keys':event['my_keys'],
         })
 
     async def websocket_message(self,event):

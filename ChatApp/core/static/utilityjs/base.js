@@ -55,17 +55,16 @@ function validateText(str)
 	}
 	
 	function appendChatMessage(data,maintainPosition,isNewMessage){
-		console.log("append chat message ko data",data);
+		key = document.getElementById('topbar_otheruser_name').dataset.val;
 		msg_id= data['msg_id'];
 		(async() => {
 
 		var temp_messages;
 
 		temp_messages = await getMessagesById(msg_id);
-		console.log("append chat message ko temp",temp_messages)
-		message_content = temp_messages['message_content'];
+		encrypted_message_content = temp_messages['message_content'];
+		message_content = decrypt(encrypted_message_content,key);
 		user_id = temp_messages['user_id'];
-		console.log("I am temp msg",temp_messages)
 		sender_fname = temp_messages['first_name'];
 		sender_lname = temp_messages['last_name'];
 		msg_timestamp = data['natural_timestamp'];
@@ -135,9 +134,14 @@ function validateText(str)
 	}
 
 	function appendNewChatMessage(data,maintainPosition,isNewMessage){
+		console.log("instant msg appending");
 		msg_id= data['msg_id'];
 		user_id = data['user_id'];
-		message_content = data['message_content']
+		encrypted_message_content = data['message_content']
+		key = document.getElementById('topbar_otheruser_name').dataset.val;
+		message_content = decrypt(encrypted_message_content,key)
+		console.log("encrypted msg",encrypted_message_content);
+		console.log("decrypted msg ",message_content);
 		sender_fname = data['first_name'];
 		sender_lname = data['last_name'];
 		msg_timestamp = data['natural_timestamp'];
@@ -246,3 +250,92 @@ function validateText(str)
 		document.getElementById("id_trigger_client_error_modal").click()
 	}
 	
+
+//for updating thread list view
+function update_thread_list_view(data){
+	var logged_user =JSON.parse(document.getElementById('logged_in_user').textContent);
+
+	var ulist = document.getElementById('contact_list_ul');
+	ulist.innerHTML = ''
+	data['chat_threads'].forEach(thread => {
+	if(thread.first_user || thread.second_user){
+		console.log("private chat")
+		if(thread.first_user.username ===logged_user['username']){
+		var myhtml = `<li class="myclass">
+						<a onclick="onSelectFriend('${thread.second_user.id}',this);"  data-userId="${thread.second_user.id}" id="id_friend_list_${thread.second_user.id}">
+							<div class="d-flex">                            
+								<div class="chat-user-img online align-self-center me-3 ms-0">
+									<img id="id_friend_img_${thread.second_user.id}" src="${thread.second_user.profile_image}" class="rounded-circle avatar-sm" alt="">
+									<!-- <span class="user-status"></span> -->
+								</div>
+		
+								<div class="flex-1 overflow-hidden">
+									<h5 class="text-truncate text-white font-size-15 mb-1">${thread.second_user.first_name} ${thread.second_user.last_name}</h5>
+									<p class="chat-user-message text-truncate mb-0">Hey! there I'm available</p>
+								</div>
+								<div class="font-size-11">05 min</div>
+							</div>
+						</a>
+					</li>`
+			ulist.innerHTML += myhtml
+		}else{
+		var myhtml = `<li class="myclass active">
+						<a onclick="onSelectFriend('${thread.first_user.id}',this);"  data-userId="${thread.first_user.id}" id="id_friend_list_${thread.second_user.id}">
+							<div class="d-flex">                            
+								<div class="chat-user-img online align-self-center me-3 ms-0">
+									<img id="id_friend_img_${thread.first_user.id}" src="${thread.first_user.profile_image}" class="rounded-circle avatar-sm" alt="">
+									<!-- <span class="user-status"></span> -->
+								</div>
+		
+								<div class="flex-1 overflow-hidden">
+									<h5 class="text-truncate text-white font-size-15 mb-1">${thread.first_user.first_name} ${thread.first_user.last_name}</h5>
+									<p class="chat-user-message text-truncate mb-0">Hey! there I'm available</p>
+								</div>
+								<div class="font-size-11">05 min</div>
+							</div>
+						</a>
+					</li>`
+			ulist.innerHTML += myhtml
+		}
+	}else{
+		console.log("group chat")
+		var myhtml = `<li class="myclass">
+						<a onclick="onSelectGroup('${thread.id}',this);"  data-userId="${thread.id}" id="id_friend_list_${thread.id}">
+							<div class="d-flex">                            
+								<div class="chat-user-img online align-self-center me-3 ms-0">
+									<img id="id_friend_img_${thread.id}" src="${thread.image}" class="rounded-circle avatar-sm" alt="">
+									<!-- <span class="user-status"></span> -->
+								</div>
+		
+								<div class="flex-1 overflow-hidden">
+									<h5 class="text-truncate text-white font-size-15 mb-1">${thread.group_name}</h5>
+									<p class="chat-user-message text-truncate mb-0">Hey! there I'm available</p>
+								</div>
+								<div class="font-size-11">05 min</div>
+							</div>
+						</a>
+					</li>`
+			ulist.innerHTML += myhtml
+		console.log(thread.group_name)
+	}
+	})
+}
+
+
+	//for encryption and decryption
+	const XOREncryptDecrypt = (message, keyString) => {
+		const key = keyString.split("");
+		const output = [];
+		for (let i = 0; i < message.length; i++) {
+			const charCode =
+				message.charCodeAt(i) ^ key[i % key.length].charCodeAt(0);
+			output.push(String.fromCharCode(charCode));
+		}
+		return output.join("");
+	};
+	
+	const encrypt = (message, key) =>
+		XOREncryptDecrypt(message, key);
+
+	const decrypt = (encryptedMessage, key) =>
+		XOREncryptDecrypt(encryptedMessage, key);

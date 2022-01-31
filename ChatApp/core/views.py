@@ -15,13 +15,14 @@ from datetime import datetime
 from accounts.models import CustomUser
 from friends.models import FriendList
 from .forms import AccountAuthenticationForm, GroupChatCreationForm, UserRegistrationForm
-from .models import GroupChatThread, PrivateChatMessage, PrivateChatThread
+from .models import GroupChatThread, Keys, PrivateChatMessage, PrivateChatThread
 from itertools import chain
 from .serializers import PrivateChatThreadSerializer, GroupChatThreadSerializer
 from rest_framework.response import Response
 from rest_framework import viewsets
 from operator import attrgetter
 from ChatApp import settings,broadcast
+from .DoubleDiffie import DiffieHellman
 import pytz
 
 # Create your views here.
@@ -32,6 +33,7 @@ def get_redirect_if_exists(request):
     redirect = None 
     if request.GET:
         if request.GET.get("next"):
+
             redirect = str(request.GET.get("next"))
     return redirect
 
@@ -64,6 +66,8 @@ def login_view(request):
     return render(request,'core/login2.html',context)
 
 
+
+
 def register_user(request, *args, **kwargs):
     if request.user.is_authenticated:
         return redirect('core:conversation')
@@ -77,6 +81,8 @@ def register_user(request, *args, **kwargs):
             if form.is_valid():
                 form.save()
                 first_name = form.cleaned_data.get('first_name')
+                username = form.cleaned_data.get('username')
+
                 print(first_name)
                 last_name = form.cleaned_data.get('last_name')
                 email = form.cleaned_data.get('email').lower()
@@ -84,6 +90,8 @@ def register_user(request, *args, **kwargs):
                 user_account = authenticate(email = email, password = raw_password)
                 print(user_account)
                 login(request, user_account)
+                usr = CustomUser.objects.filter(username = username).first()
+                store_keys(usr)
                 destination_page = kwargs.get("next")
                 if destination_page:
                     return redirect(destination_page)
@@ -91,7 +99,6 @@ def register_user(request, *args, **kwargs):
             else:
                 print("form is invalid")
                 context['reg_form'] = form
-        
         else:
             form = UserRegistrationForm()
             context['reg_form'] = form
@@ -391,3 +398,16 @@ def add_members_to_chat(request,*args,**kwargs):
         return JsonResponse(data)
     else:
         return HttpResponse("No you can't do such things")
+
+def store_keys(sender):
+    data = {}
+    dh = DiffieHellman()
+    private_key,public_key= dh.get_private_key(), dh.generate_public_key()
+    second_private_key = dh.get_second_private_key()
+    # data['private_key'] = private_key
+    # data['second_private_key'] = second_private_key
+    # data['public_key'] = public_key
+    # return JsonResponse(data)
+    Keys(keys_owner = sender,private_key = private_key,second_private_key = second_private_key,public_key = public_key).save()
+
+

@@ -1,4 +1,5 @@
 let db = new Localbase('messageDb');
+db.config.debug = false
 async function addToDatabase(messages_data){
     await db.collection('private_messages').add(messages_data);
 }

@@ -25,8 +25,13 @@ function closegroupWebSocket(){
 function groupChatWebSocketSetup(thread_id){
     console.log("web socket for "+thread_id)
     groupThreadId = thread_id
-    closeWebSocket();
+    // closeWebSocket();
+    clearChat();
+    showLoader();
+    setPageNumber("1");
+    disableChatHistoryScroll();
     closegroupWebSocket();
+    
     groupChatWebSocket = new WebSocket(
         'ws://'
         + window.location.host
@@ -60,6 +65,16 @@ function groupChatWebSocketSetup(thread_id){
 
         if(data.command =='group_chat'){
         if(data.msg_type == 0 || data.msg_type == 1 || data.msg_type == 2 || data.msg_type ==3 || data.msg_type == 4){
+            $.ajax({
+                type: "GET",
+      
+                url: window.location.origin+'/chat/chat_thread_list/',
+                timeout: 5000,
+                success: (data) => {
+                    console.log("ajax wala data",data)
+                    update_thread_list_view(data);
+                }
+            });
             console.log("chat message gayera aayo");
             console.log(data);
             appendGroupChatMessage(data,false,true);
@@ -73,7 +88,7 @@ function groupChatWebSocketSetup(thread_id){
 
         }
         if(data.messages_response){
-            onReceivingMessagesResponse(data.messages_metadata,data.new_page_number,data.firstAttempt);
+            onReceivingGroupMessagesResponse(data.messages_metadata,data.new_page_number,data.firstAttempt);
         }
     }
 
@@ -178,6 +193,25 @@ function onReceivingGroupChatInfo(group_chat_info){
     preloadImage(group_chat_info['image'],'topbar_otheruser_image')
 }
 
+var onReceivingGroupMessagesResponse = (messages,new_page_number,firstAttempt)=>{
+
+    console.log("yo messages checking",messages)
+
+    if(messages!= null && messages != 'undefined' && messages!="None"){
+        setPageNumber(new_page_number);
+        messages.forEach(element => {
+            appendGroupChatMessage(element, true,false);
+            
+        });
+        if(firstAttempt){
+            scrollToBottom();
+        }
+        
+    }else{
+        console.log("khattam no messages");
+        paginationKhattam();
+    }
+}
 function appendGroupChatMessage(data, maintainPosition, isNewMessage){
     messageType = data['msg_type']
     msg_id = data['msg_id']
@@ -197,7 +231,7 @@ function appendGroupChatMessage(data, maintainPosition, isNewMessage){
             // new chatroom msg
             username = uName + ": "
             msg = message + '\n'
-            createChatMessageElement(msg, msg_id, username, profile_image, user_id, timestamp, maintainPosition, isNewMessage)
+            createChatMessageElement(data, maintainPosition, isNewMessage)
             break;
         case 1:
             // User added to chat
@@ -221,6 +255,81 @@ function appendGroupChatMessage(data, maintainPosition, isNewMessage){
             console.log("Unsupported message type!");
             return;
     }
+}
+
+function createChatMessageElement(data,maintainPosition, isNewMessage){
+    // console.log("instant msg appending");
+    msg_id= data['msg_id'];
+    user_id = data['user_id'];
+    message_content = data['message_content']
+    sender_fname = data['first_name'];
+    sender_lname = data['last_name'];
+    msg_timestamp = data['natural_timestamp'];
+    profile_image = data['profile_image'];
+    username = data['username'];
+    
+    //get the parent ul element
+    var chat_history = document.getElementById('id_chat_log');
+    
+    //create the child elements
+    var newMessageBlock = document.createElement('div');
+    var conversation_list_div = document.createElement('div');
+    var chat_avatar_div = document.createElement('div');
+    var user_chat_content_div = document.createElement('div');
+    var ctext_wrap_div = document.createElement('div');
+    var ctext_wrap_content_div = document.createElement('div');
+    var new_message_content = document.createElement('p');
+    var message_timestamp_p = document.createElement('p');
+    var conversation_name_div = document.createElement('div');
+
+    //add class to every created element
+    conversation_list_div.classList.add('conversation-list');
+    chat_avatar_div.classList.add('chat-avatar');
+    user_chat_content_div.classList.add('user-chat-content');
+    ctext_wrap_div.classList.add('ctext-wrap');
+    ctext_wrap_content_div.classList.add('ctext-wrap-content');
+    new_message_content.classList.add('mb-0')
+    message_timestamp_p.classList.add('chat-time','mb-0');
+    conversation_name_div.classList.add('conversation_name_div');
+    var profileImage = document.createElement('img');
+    profileImage.dataset.sender_id = user_id;
+    profileImage.classList.add('clickable_cursor');
+    profileImage.addEventListener('click',(e)=>{
+        selectUser(profileImage.dataset.sender_id);
+    });
+    var sender_profile_image_id = "sender_profile_image_"+msg_id;
+    profileImage.id = sender_profile_image_id;
+    //rewrite the content of the created element message,timestamp and name
+    new_message_content.innerHTML = validateText(message_content) ;
+    message_timestamp_p.innerHTML = msg_timestamp
+    conversation_name_div.innerHTML = sender_fname +" "+ sender_lname
+    //check if the sender is the logged in user
+        //append elements in order
+        ctext_wrap_content_div.append(new_message_content,message_timestamp_p);
+        ctext_wrap_div.appendChild(ctext_wrap_content_div);
+        user_chat_content_div.append(ctext_wrap_div,conversation_name_div);
+        chat_avatar_div.appendChild(profileImage);
+        conversation_list_div.append(chat_avatar_div,user_chat_content_div)
+        newMessageBlock.appendChild(conversation_list_div)
+    if(user_id == logged_user.id && username == logged_user.username){
+        // new_message_content.classList.add('')
+        newMessageBlock.classList.add('sent','right');
+
+    }else{
+        // new_message_content.classList.add('')
+        newMessageBlock.classList.add('replies');
+    }
+    //append message based on if it is instant message or the whole chunk of previous messages
+
+    if(isNewMessage){
+        chat_history.insertBefore(newMessageBlock,chat_history.firstChild);
+    }else{
+        chat_history.appendChild(newMessageBlock);
+    }
+    if(!maintainPosition){
+        scrollToBottom();
+    }
+    preloadImage(profile_image,sender_profile_image_id);
 }
 
 function createConnectedDisconnectedElement(msg, msd_id, profile_image, user_id){

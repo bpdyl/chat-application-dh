@@ -115,3 +115,8 @@ class GroupChatMessage(models.Model):
     def __str__(self):
         return self.content + self.sender.username
 
+class Keys(models.Model):
+    keys_owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,related_name='keys_owner')
+    private_key = models.TextField(blank=True,null=True)
+    second_private_key = models.TextField(blank=True,null=True)
+    public_key = models.TextField(blank=True,null=True)
