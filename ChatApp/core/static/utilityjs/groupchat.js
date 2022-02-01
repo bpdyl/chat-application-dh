@@ -9,6 +9,7 @@ function onSelectGroup(threadId,ele){
     setActiveThreadFriend(threadId);
     $(".user-chat").addClass("user-chat-show");
 
+    console.log("i am called by ",logged_user.username);
     groupChatWebSocketSetup(threadId);
 
 
@@ -61,12 +62,14 @@ function groupChatWebSocketSetup(thread_id){
             var secret_key = document.getElementById('topbar_otheruser_name');
             secret_key.removeAttribute('data-val');
             thread_distinguish.innerHTML = data.thread_type;
-
-            getGroupChatInfo();
-            showLoader();
-            getGroupThreadMessages(true);
-            hideLoader();
-            enableChatHistoryScroll();
+            console.log("requested by and logged user",data['requested_by'],logged_user.username)
+            if(data['requested_by'] ==logged_user.username){
+                getGroupChatInfo();
+                showLoader();
+                getGroupThreadMessages(true);
+                hideLoader();
+                enableChatHistoryScroll();
+            }
         }
 
 
@@ -78,21 +81,24 @@ function groupChatWebSocketSetup(thread_id){
                 url: window.location.origin+'/chat/chat_thread_list/',
                 timeout: 5000,
                 success: (data) => {
-                    console.log("ajax wala data",data)
                     update_thread_list_view(data);
                 }
             });
-            console.log("chat message gayera aayo");
+            console.log("group chat message gayera aayo");
             console.log(data);
+           let active_grp_thread =  document.getElementById('topbar_otheruser_name').dataset.group_thread_id
+            if(active_grp_thread == data.group_thread_id){
             appendGroupChatMessage(data,false,true);
+            }
         }
     }
 
         if(data.group_chat_info){
-
+            if(groupThreadId == data.group_thread_id){
+                
             my_info = JSON.parse(data['group_chat_info'])
             onReceivingGroupChatInfo(my_info);
-
+            }
         }
         if(data.messages_response){
             onReceivingGroupMessagesResponse(data.messages_metadata,data.new_page_number,data.firstAttempt);
@@ -105,6 +111,7 @@ function groupChatWebSocketSetup(thread_id){
         if(unsafe_authenticated){
             groupChatWebSocket.send(JSON.stringify({
                 "command": "join",
+                "requested_by": logged_user.username,
             }));
         }
     })
@@ -148,6 +155,7 @@ function getGroupThreadMessages(firstAttempt=false){
 }
 
 function getGroupChatInfo(){
+    
     groupChatWebSocket.send(JSON.stringify({
         'command': 'get_group_chat_info',
     }))
@@ -161,6 +169,8 @@ function onReceivingGroupChatInfo(group_chat_info){
     document.getElementById('topbar_otheruser_name').href ='#';
     document.getElementById('topbar_otheruser_name').removeAttribute('data-other_user_id');
     document.getElementById('topbar_otheruser_name').removeAttribute('data-pvt_thread_id');
+    document.getElementById('topbar_otheruser_name').dataset.group_thread_id = group_chat_info['thread_id'];
+
     document.getElementById('other_user_info').href ='#';
     document.getElementById('other_user_profile_image').classList.remove("d-none");
     document.getElementById('sidebar_simplebar_about').innerHTML = "Customize Chat";
@@ -202,7 +212,7 @@ function onReceivingGroupChatInfo(group_chat_info){
 
 var onReceivingGroupMessagesResponse = (messages,new_page_number,firstAttempt)=>{
 
-    console.log("yo messages checking",messages)
+    console.log("yo messages checking group",messages)
 
     if(messages!= null && messages != 'undefined' && messages!="None"){
         setPageNumber(new_page_number);

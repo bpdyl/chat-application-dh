@@ -478,7 +478,29 @@ setInterval(function(){
 },3000);
 })
 </script> -->
-<script src="{% static 'utilityjs/friendRequestHandle.js' %}"></script>
+<script src="https://unpkg.com/localbase/dist/localbase.dev.js"></script>
+<script src="{% static 'utilityjs/db.js' %}"></script>
+<script type="text/javascript">
+	var privateChatWebSocket = new WebSocket(
+        'ws://'
+        + window.location.host
+        + '/ws/privatechat/'
+        + '{{request.user.id}}'
+        + '/'
+    )
+
+	privateChatWebSocket.onmessage = function(e){
+        var data = JSON.parse(e.data);
+
+		if(data.command == "private_chat"){
+            (async() => {
+            await addToDatabase(data);
+        })()
+            console.log(data);
+        }
+	}
+</script>
+
 <script type="text/javascript">
 	lightGallery(document.getElementById('lightgallery'),{
 		// plugins: [lgAutoplay, lgComment, lgFullscreen, lgHash, lgPager, lgRotate, lgShare, lgVideo, lgZoom, lgThumbnail],

@@ -259,7 +259,6 @@ function update_thread_list_view(data){
 	ulist.innerHTML = ''
 	data['chat_threads'].forEach(thread => {
 	if(thread.first_user || thread.second_user){
-		console.log("private chat")
 		if(thread.first_user.username ===logged_user['username']){
 		var myhtml = `<li class="myclass">
 						<a onclick="onSelectFriend('${thread.second_user.id}',this);" data-threadType="private-thread"  data-userId="${thread.second_user.id}" id="id_friend_list_${thread.second_user.id}">
@@ -298,7 +297,6 @@ function update_thread_list_view(data){
 			ulist.innerHTML += myhtml
 		}
 	}else{
-		console.log("group chat")
 		var myhtml = `<li class="myclass">
 						<a onclick="onSelectGroup('${thread.id}',this);" data-threadType="group-thread" data-userId="${thread.id}" id="id_friend_list_${thread.id}">
 							<div class="d-flex">                            
@@ -316,7 +314,6 @@ function update_thread_list_view(data){
 						</a>
 					</li>`
 			ulist.innerHTML += myhtml
-		console.log(thread.group_name)
 	}
 	})
 }

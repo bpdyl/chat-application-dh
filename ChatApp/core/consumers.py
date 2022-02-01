@@ -23,26 +23,26 @@ from friends.models import FriendList
 
 
 
-def generate_test_keys():
-    data = {}
-    bob = DiffieHellman()
-    alice = DiffieHellman()
-    private_key_bob,public_key_bob = bob.get_private_key(), bob.generate_public_key()
-    private_key_alice,public_key_alice = alice.get_private_key(), alice.generate_public_key()
-    alice_shared_key = alice.generate_shared_key(public_key_bob)
-    bob_shared_key = bob.generate_shared_key(public_key_alice)
-    print("ma bob shared key",bob_shared_key)
-    print("ma alice shared key",alice_shared_key)
-    bob_second_public_key = bob.generate_second_public_key(bob_shared_key)
-    alice_second_public_key = alice.generate_second_public_key(alice_shared_key)
-    bob_second_shared_key = bob.generate_second_shared_key(alice_second_public_key,bob_shared_key)
-    alice_second_shared_key = alice.generate_second_shared_key(bob_second_public_key,alice_shared_key)
-    data['private_key_bob'] = private_key_bob
-    data['public_key_bob'] = public_key_bob
-    data['private_key_alice'] = private_key_alice
-    data['public_key_bob'] = public_key_alice
-    data['shared_key'] = alice_second_shared_key
-    return json.dumps(data)
+# def generate_test_keys():
+#     data = {}
+#     bob = DiffieHellman()
+#     alice = DiffieHellman()
+#     private_key_bob,public_key_bob = bob.get_private_key(), bob.generate_public_key()
+#     private_key_alice,public_key_alice = alice.get_private_key(), alice.generate_public_key()
+#     alice_shared_key = alice.generate_shared_key(public_key_bob)
+#     bob_shared_key = bob.generate_shared_key(public_key_alice)
+#     print("ma bob shared key",bob_shared_key)
+#     print("ma alice shared key",alice_shared_key)
+#     bob_second_public_key = bob.generate_second_public_key(bob_shared_key)
+#     alice_second_public_key = alice.generate_second_public_key(alice_shared_key)
+#     bob_second_shared_key = bob.generate_second_shared_key(alice_second_public_key,bob_shared_key)
+#     alice_second_shared_key = alice.generate_second_shared_key(bob_second_public_key,alice_shared_key)
+#     data['private_key_bob'] = private_key_bob
+#     data['public_key_bob'] = public_key_bob
+#     data['private_key_alice'] = private_key_alice
+#     data['public_key_bob'] = public_key_alice
+#     data['shared_key'] = alice_second_shared_key
+#     return json.dumps(data)
     
 # def generate_shared_key():
 #     try:
@@ -131,7 +131,8 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
                     )
 
             
-
+            #when someone message to the chat 
+            
             elif command == "private_chat":
                 message = content.get("message")
                 message_type = content['message_type']
@@ -446,15 +447,19 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
 
     async def receive_json(self, content, **kwargs):
         command = content.get("command",None)
+        requested_by = content.get("requested_by")
         print("yo command ho ",command)
         try:
             if command == "join":
+                print("requested by ",requested_by)
+
                 await self.channel_layer.group_send(
                         self.room_group_name,
                         {
                             "type": "websocket_join",
                             "join":str(self.room_id),
                             "thread_type":"group_thread",
+                            "requested_by":requested_by,
                         }
                     )
 
@@ -540,6 +545,8 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
         await self.send_json({
             'joining_room': str(room_id),
             'thread_type': event['thread_type'],
+            "requested_by":event['requested_by'],
+
         })
 
     async def websocket_message(self,event):
@@ -558,6 +565,7 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
             'last_name':event['last_name'],
             'profile_image': event['profile_image'],
             'user_id': event['user_id'],
+            'group_thread_id':self.room_id,
         }))
         
     async def websocket_typing(self, event):
@@ -585,6 +593,8 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
         await self.send_json(
             {
                 'group_chat_info': json.dumps(group_chat_info),
+                'group_thread_id':self.room_id,
+                
             },
         )
 

@@ -95,7 +95,6 @@ function webSocketSetup(user_id){
             // secret_key.setAttribute('id','secret_key_id');
             secret_key.dataset.val = data['my_keys']['final_shared_key'];
             // $('#topbar_otheruser_name').append(secret_key);
-            console.log(thread_distinguish.textContent);
             getUserInfo();
             showLoader();
             getPrivateThreadMessages(true);
@@ -262,6 +261,7 @@ function onReceivingUserInfo(user_info,pvt_thread_id){
     document.getElementById('other_user_profile_image').classList.remove("d-none");
     user_profile_url = myurl+"/account/profile/"+user_info['id'];
     document.getElementById('topbar_otheruser_name').href = user_profile_url;
+    document.getElementById('topbar_otheruser_name').removeAttribute('data-group_thread_id');
     document.getElementById('topbar_otheruser_name').dataset.other_user_id = user_info['id'];
     document.getElementById('topbar_otheruser_name').dataset.pvt_thread_id = pvt_thread_id;
 
