@@ -390,6 +390,8 @@ function createConnectedDisconnectedElement(msg, msd_id, profile_image, user_id)
 
     preloadImage(profile_image, profile_image_id)
  }
+
+
  function test_url(mid){
     const nextURL = window.location.origin+'/account/profile/'+mid;
     const nextTitle = 'My new page title';
@@ -408,7 +410,6 @@ function group_members_display(members,admin_id,admin_username){
     var member_type;
     var is_self;
     var can_kick;
-
     members.forEach(member => {
         if(member.id == admin_id && member.username ==admin_username){
             member_type = 'Admin';
@@ -453,8 +454,8 @@ function group_members_display(members,admin_id,admin_username){
                         <div class="dropdown-menu dropdown-menu-end">
                             <a class="dropdown-item direct_message ${is_self?"d-none":"block"}" onclick='onSelectFriend(${member.id})' href="#">Message</a>
                             <a class="dropdown-item" href="${window.location.origin+'/account/profile/'+member.id}">View Profile</a>
-                            <a class="dropdown-item" style="display:${can_kick?"block":"none"}" href="#">Kick</a>
-                            <a class="dropdown-item" style="display:${is_self?"block":"none"}" href="#">Leave Group</a>
+                            <a class="dropdown-item remove-member" data-removee=${member.id} data-remover=${admin_id} style="display:${can_kick?"block":"none"}" href="#">Kick</a>
+                            <a class="dropdown-item leave-group" data-leave=${member.id} style="display:${is_self?"block":"none"}" href="#">Leave Group</a>
                         </div>
                     </li>
                 </ul>
@@ -466,7 +467,22 @@ function group_members_display(members,admin_id,admin_username){
 
 
 }
-
+function groupActions_event_listener() {
+    var kickContainer = document.querySelectorAll(".remove-member");
+    var leaveContainer = document.querySelectorAll(".decline_request");
+    [].map.call(kickContainer, function(elem) {
+        elem.addEventListener("click",function(){
+        console.log(this.id);
+        kickMemberFromGroup(this.dataset.kick);
+        }, false);
+    });
+    [].map.call(leaveContainer, function(elem) {
+        elem.addEventListener("click",function(){
+        console.log(this.id);
+        leaveGroup(this.dataset.leave);
+        }, false);
+    });
+}
 var submitbutton = $('#chat_name_change_submit');
 var orig = [];
 $.fn.getType = function () {
