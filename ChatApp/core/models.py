@@ -60,8 +60,17 @@ class PrivateChatThread(models.Model):
     
     def last_msg(self):
         return self.private_message.all().last()
-
-
+    @property
+    def latest_msg(self):
+        try:
+            msg = self.private_message.all().last().id
+            print("this is private msg",msg)
+            msg_sender = self.private_message.all().last().sender.first_name
+            print("msg sender",msg_sender)
+            return msg_sender+":"+str(msg)
+        except:
+            msg = "No messages have been exchanged yet."
+            return msg
 class PrivateChatMessageManager(models.Manager):
     def by_private_thread(self, private_thread):
         qs = PrivateChatMessage.objects.filter(chat_thread=private_thread).order_by('-timestamp')
@@ -90,7 +99,18 @@ class GroupChatThread(Group):
     def add_members(self,group_chat,members):
         for m in members:
             group_chat.user_set.add(m)
-
+    def last_msg(self):
+        return self.gc_message.all().last()
+    @property
+    def latest_msg(self):
+        try:
+            msg = self.gc_message.all().last().content
+            msg_sender = self.gc_message.all().last().sender.first_name
+            return msg_sender+":"+msg
+        except:
+            msg = "No messages have been exchanged yet."
+            return msg
+    
     @property
     def gc_name(self):
         return "GroupChat-%s" % self.id
@@ -104,7 +124,7 @@ class GroupChatMessageManager(models.Manager):
         return qs
 
 class GroupChatMessage(models.Model):
-    gc_thread = models.ForeignKey(GroupChatThread,on_delete=models.CASCADE)
+    gc_thread = models.ForeignKey(GroupChatThread,on_delete=models.CASCADE,related_name='gc_message')
     sender = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name='grp_sender')
     timestamp = models.DateTimeField(auto_now_add=True)
     message_type = models.CharField(max_length=50, blank=True, null= True, default='text')

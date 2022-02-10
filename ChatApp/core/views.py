@@ -1,4 +1,4 @@
-from concurrent.futures import thread
+
 from django.contrib import auth
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
@@ -6,103 +6,32 @@ from django.core.serializers import serialize
 from django.http.response import JsonResponse
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
-from django.contrib.auth import login, authenticate
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.db.models import Value as V
 from django.db.models.functions import Concat
 from datetime import datetime
 from accounts.models import CustomUser
+from core.DoubleDiffie import DiffieHellman
+from core.exceptions import ClientError
 from friends.models import FriendList
-from .forms import AccountAuthenticationForm, GroupChatCreationForm, UserRegistrationForm
+from .forms import GroupChatCreationForm
 from .models import GroupChatThread, Keys, PrivateChatMessage, PrivateChatThread
 from itertools import chain
 from .serializers import PrivateChatThreadSerializer, GroupChatThreadSerializer
 from rest_framework.response import Response
 from rest_framework import viewsets
 from operator import attrgetter
+from .consumers import generate_shared_keys
 from ChatApp import settings,broadcast
-from .DoubleDiffie import DiffieHellman
 import pytz
+import json
+
 
 # Create your views here.
 
 DEBUG = False
 
-def get_redirect_if_exists(request):
-    redirect = None 
-    if request.GET:
-        if request.GET.get("next"):
-
-            redirect = str(request.GET.get("next"))
-    return redirect
-
-
-def login_view(request):
-    context = {}
-    current_user = request.user
-    if current_user.is_authenticated:
-        return redirect("core:conversation")
-    destination = get_redirect_if_exists(request)
-    print("Destination",destination)
-    if request.POST:
-        form = AccountAuthenticationForm(request.POST)
-        if form.is_valid():
-            email = request.POST['email']
-            password = request.POST['password']
-            user = authenticate(email = email, password = password)
-            if user:
-                login(request,user)
-                if destination:
-                    return redirect(destination)
-                return redirect("core:conversation")
-        else:
-            context['login_form'] = form
-
-            print("Invalid login form")
-    else:
-        form = AccountAuthenticationForm()
-        context['login_form'] = form
-    return render(request,'core/login2.html',context)
-
-
-
-
-def register_user(request, *args, **kwargs):
-    if request.user.is_authenticated:
-        return redirect('core:conversation')
-       
-    else:
-        context = {}
-        if request.POST:
-            form = UserRegistrationForm(request.POST)
-            print("I am here")
-            print(form.data.get('email'))
-            if form.is_valid():
-                form.save()
-                first_name = form.cleaned_data.get('first_name')
-                username = form.cleaned_data.get('username')
-
-                print(first_name)
-                last_name = form.cleaned_data.get('last_name')
-                email = form.cleaned_data.get('email').lower()
-                raw_password = form.cleaned_data.get('password1')
-                user_account = authenticate(email = email, password = raw_password)
-                print(user_account)
-                login(request, user_account)
-                usr = CustomUser.objects.filter(username = username).first()
-                store_keys(usr)
-                destination_page = kwargs.get("next")
-                if destination_page:
-                    return redirect(destination_page)
-                return redirect('core:conversation')
-            else:
-                print("form is invalid")
-                context['reg_form'] = form
-        else:
-            form = UserRegistrationForm()
-            context['reg_form'] = form
-        return render(request, 'core/signup.html',context)
 
 @login_required
 def chat_section(request):
@@ -120,24 +49,42 @@ def chat_thread_view(request,*args,**kwargs):
         'username',
         'profile_image',
     ).get(id = current_user.id)
-    thread_id = request.GET.get('thread_id')
+    thread_id = request.GET.get('t_id')
+    group_t_id = request.GET.get('gt_id')
     context = {}
+
+    if group_t_id:
+        try:
+            group_thread = get_group_thread_or_error(group_t_id,current_user)
+            context['gt_id'] = group_thread.id
+        except ClientError as e:
+            context['invalid_gt_id'] = e.message
     context['current_user'] = logged_user
     if thread_id:
-        private_thread = PrivateChatThread.objects.get(pk = thread_id)
-        context['private_thread'] = private_thread
-        context['private_thread_json'] = serialize('jsonl',private_thread)
+        context['t_id'] = thread_id
+        # try:
+        #     private_thread = get_thread_or_error(thread_id,current_user)
+        #     print(private_thread.first_user,private_thread.second_user)
+        #     context['private_thread'] = private_thread
+        # except ClientError as e:
+        #     print(e.message)
+        #     context['response'] = e.message
+        #     return JsonResponse(context['response'],safe=False)
+
+        # context['private_thread_json'] = PrivateChatThreadSerializer(private_thread).data
     threads1 = PrivateChatThread.objects.filter(first_user = current_user, is_active = True)
     threads2 = PrivateChatThread.objects.filter(second_user = current_user, is_active = True)
     group_ids = current_user.groups.values_list('id')
     group_threads = GroupChatThread.objects.filter(id__in = group_ids)
     threads = sorted(chain(threads1, threads2,group_threads),key = attrgetter('updated_at'),reverse = True)
+    thread_users_id = []
     for thread in threads:
         if hasattr(thread,'first_user') or hasattr(thread,'second_user'):
             if thread.first_user == current_user:
                 friend = thread.second_user
             else:
                 friend = thread.first_user
+            thread_users_id.append(friend.id)
             friend_list = FriendList.objects.get(user = current_user)
             if not friend_list.is_mutual_friend(friend):
                 private_chat = PrivateChatThread.objects.create_room_if_none(current_user,friend)
@@ -145,7 +92,13 @@ def chat_thread_view(request,*args,**kwargs):
                 private_chat.save()
         else:
             group = thread
-
+    keys = []
+    for id in thread_users_id:
+        target_user = CustomUser.objects.get(pk = id)
+        sh_key = generate_shared_keys(current_user,target_user)
+        sh_key = json.loads(sh_key)
+        keys.append(sh_key['final_shared_key'])
+    context['keys'] = keys
     context['chat_threads'] = threads
     context['thread_id'] = thread_id
     return render(request,"core/index.html",context)
@@ -204,6 +157,21 @@ def get_recent_chatroom_messages(user):
                 'friend':friend,
             })
     return sorted(m_and_f, key=lambda x: x['message'].timestamp, reverse=True)
+
+
+
+def get_thread_or_error(thread_id, user):
+    try:
+        thread = PrivateChatThread.objects.get(pk = thread_id)
+    except PrivateChatThread.DoesNotExist:
+        raise ClientError("THREAD_INVALID", "Invalid chat thread.")
+    if user!=thread.first_user and user != thread.second_user:
+        raise ClientError("ACCESS_DENIED", "You don't have permissiion to join this chat.")
+    friend_list = FriendList.objects.get(user = user).friends.all()
+    if not thread.first_user in friend_list:
+        if not thread.second_user in friend_list:
+            raise ClientError("ACCESS_DENIED", "You must be friends to chat.")
+    return thread
 @login_required
 def create_or_return_private_chat(request, *args,**kwargs):
     first_user = request.user
@@ -213,8 +181,13 @@ def create_or_return_private_chat(request, *args,**kwargs):
         try:
             second_user = CustomUser.objects.get(pk = second_user_id)
             private_thread = PrivateChatThread.objects.create_room_if_none(first_user,second_user)
-            data['response'] = "Successfully got the chat."
-            data['private_thread_id'] = private_thread.id
+            try:
+                pvt_thread = get_thread_or_error(private_thread.id,first_user)
+                data['response'] = "Successfully got the chat."
+                data['private_thread_id'] = pvt_thread.id
+            except ClientError as e:
+                data['response'] = e.message
+
         except CustomUser.DoesNotExist:
             data['response'] = "Unable to start a chat with that user."
     else:
@@ -306,6 +279,16 @@ class ThreadViewSet(viewsets.ViewSet):
         my_threads_dict['chat_threads'] = threads
         return Response(my_threads_dict)
 
+def get_group_thread_or_error(thread_id,user):
+    try:
+        thread = GroupChatThread.objects.get(pk = thread_id)
+        thread_members = thread.user_set.all()
+    except GroupChatThread.DoesNotExist:
+        raise ClientError("THREAD_INVALID", "Invalid chat thread.")
+    if not user in thread_members:
+        raise ClientError("ACCESS_DENIED", "You don't have permissiion to join this chat.")
+    return thread
+
 @login_required
 def create_group_chat(request,*args,**kwargs):
     form = GroupChatCreationForm(request.POST or None, request.FILES or None)
@@ -338,6 +321,7 @@ def create_group_chat(request,*args,**kwargs):
             #     this_group.user_set.add(u)
             
             data['status'] = 'Created'
+            # broadcast.perform_broadcast(data,room_group_name,consumer_method_name)
             return JsonResponse(data)
         return JsonResponse("testing",safe=False)
         
@@ -399,15 +383,30 @@ def add_members_to_chat(request,*args,**kwargs):
     else:
         return HttpResponse("No you can't do such things")
 
-def store_keys(sender):
+
+@login_required
+def gsk(request,*args,**kwargs):
+    if request.method=="POST" and request.is_ajax():
+        data = {}
+        print("POST Data",request.POST)
+        user_ids = request.POST.getlist('users_id[]')
+        ks = []
+        for id in user_ids:
+            target_user = CustomUser.objects.get(pk = id)
+            key = generate_shared_keys(request.user,target_user)
+            key = json.loads(key)
+            ks.append(key['final_shared_key'])
+        data['ks'] = ks
+        return JsonResponse(data)
+    else:
+        return HttpResponse("not allowed")
+
+def generate_keys(request):
     data = {}
     dh = DiffieHellman()
-    private_key,public_key= dh.get_private_key(), dh.generate_public_key()
-    second_private_key = dh.get_second_private_key()
-    # data['private_key'] = private_key
-    # data['second_private_key'] = second_private_key
-    # data['public_key'] = public_key
-    # return JsonResponse(data)
-    Keys(keys_owner = sender,private_key = private_key,second_private_key = second_private_key,public_key = public_key).save()
-
+    private_key,public_key,second_private_key= dh.get_private_key(), dh.generate_public_key(),dh.get_second_private_key()
+    data['private_key'] = private_key
+    data['second_private_key'] = second_private_key
+    data['public_key'] = public_key
+    return JsonResponse(data)
 

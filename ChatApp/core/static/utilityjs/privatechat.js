@@ -21,24 +21,33 @@ var friendId = null;
 console.log("this is loggeduser",logged_user)
 
 
-var [first_thread_id,threadType] = getIDs();
-console.log("first user id and thread type",first_thread_id,threadType)
+// var [first_thread_id,threadType] = getIDs();
+// console.log("first user id and thread type",first_thread_id,threadType)
 
-if(first_thread_id!=null){
-if(threadType == "private-thread"){
-    setActiveThreadFriend(first_thread_id);
-    createOrReturnPrivateChat(first_thread_id);
-}else if(threadType == "group-thread"){
-    groupChatWebSocketSetup(first_thread_id);
-    console.log("group chat connection")
-}
-}
+// if(first_thread_id!=null){
+// if(threadType == "private-thread"){
+//     setActiveThreadFriend(first_thread_id);
+//     createOrReturnPrivateChat(first_thread_id);
+// }else if(threadType == "group-thread"){
+//     groupChatWebSocketSetup(first_thread_id);
+//     console.log("group chat connection")
+// }
+// }
 
 unsafe_authenticated = 'true' === document.currentScript.dataset.authenticated;
 
 function onSelectFriend(userId,ele){
     console.log("onSelectFriend: " + userId)
     createOrReturnPrivateChat(userId)
+    var nextURL = window.location.origin+'/chat/?t_id='+userId;
+    var nextTitle = 'My new page title';
+    var nextState = { additionalInformation: 'Updated the URL with JS' };
+
+    // This will create a new entry in the browser's history, without reloading
+    window.history.pushState(nextState, nextTitle, nextURL);
+
+    // This will replace the current entry in the browser's history, without reloading
+    window.history.replaceState(nextState, nextTitle, nextURL)
     removeActiveThreadFriend();
     $(".user-chat").addClass("user-chat-show");
     setActiveThreadFriend(userId);
@@ -56,12 +65,11 @@ function closeWebSocket(){
     }
 }
 
-function webSocketSetup(user_id){
+function webSocketSetup(user_id,pvt_id){
     console.log("web socket for "+user_id)
     friendId = user_id
     // closegroupWebSocket();
-    clearChat();
-    showLoader();
+
     setPageNumber("1");
     disableChatHistoryScroll();
     closeWebSocket();
@@ -88,13 +96,19 @@ function webSocketSetup(user_id){
             return;
         }
 
+        if(data.command == 'idb_broadcast'){
+            onIDBroadcast(data['idb_message'],pvt_id);
+            // setTimeout(idb_broadcastCallback,2000);
+        }
+
         if (data.joining_room){
             console.log("Joining room " + data.joining_room);
             thread_distinguish.innerHTML = data.thread_type
             var secret_key = document.getElementById('topbar_otheruser_name');
             // secret_key.setAttribute('id','secret_key_id');
             secret_key.dataset.val = data['my_keys']['final_shared_key'];
-            // $('#topbar_otheruser_name').append(secret_key);
+            clearChat();
+            showLoader();
             getUserInfo();
             showLoader();
             getPrivateThreadMessages(true);
@@ -112,9 +126,9 @@ function webSocketSetup(user_id){
                 timeout: 5000,
                 success: (data) => {
                     update_thread_list_view(data);
+                    gk();
                 }
             });
-            console.log("chat message gayera aayo");
             (async() => {
             await addToDatabase(data);
         })()
@@ -127,8 +141,6 @@ function webSocketSetup(user_id){
         window.scrollTo(0,chat_section.scrollHeight)
 
         }
-
-        
 
 
         if(data.user_info){
@@ -150,6 +162,17 @@ function webSocketSetup(user_id){
             privateChatWebSocket.send(JSON.stringify({
                 "command": "join",
             }));
+            let msgdata = getMessagesByThread(pvt_id);
+            msgdata.then(elem=>{
+                if(elem.length>0){
+                    privateChatWebSocket.send(JSON.stringify({
+                        "command": "idb_broadcast",
+                        'idb_msg':elem,
+                    }));
+                }else{
+                    console.log("no messages");
+                }
+            })
         }
     })
     privateChatWebSocket.onopen = function(e){
@@ -166,7 +189,7 @@ function webSocketSetup(user_id){
     }
 }
 const chat_message_send_btn = document.getElementById('chat_message_send_btn');
-console.log(chat_message_send_btn)
+
 $('#chat_message_input').keypress(function(e){
     if(e.which===13 && e.shiftKey){
         //shift and enter pressed go to next line
@@ -191,14 +214,11 @@ chat_message_send_btn.onclick = function(e){
 
         // alert(encryptedMsg);
         let send_to = document.getElementById('topbar_otheruser_name').dataset.other_user_id
-        console.log("This is send to",send_to)
         if(chat_message == ''){
             console.log("empty message");
             return;
         }
-        console.log("sent_by",logged_user['id']);
 
-        console.log("client ko message",chat_message)
         if(thread_distinguish.innerHTML == 'private_thread'){
         const encryptedMsg = encrypt(chat_message,s_key);
 
@@ -226,10 +246,16 @@ chat_message_send_btn.onclick = function(e){
 }
 
 
-
+// function idb_broadcastCallback(){
+//     showLoader();
+//     getUserInfo();
+//     showLoader();
+//     getPrivateThreadMessages(true);
+//     hideLoader();
+//     enableChatHistoryScroll();
+// }
 
 function getUserInfo(){
-    console.log("i am being called.")
     privateChatWebSocket.send(JSON.stringify({
         'command': 'get_user_info',
     }))
@@ -252,7 +278,21 @@ function getPrivateThreadMessages(firstAttempt=false){
 
 
 
+function onIDBroadcast(msg_info,t_id){
+    console.log("on idb broadcast")
+    let msgdata = getMessagesByThread(t_id);
+    msgdata.then(elem=>{
+        if(elem.length>0){
 
+            console.log("found existing message",elem);
+        }else{
+            console.log("no messages found so inserting");
+            msg_info.forEach(async msg=>{
+                await addToDatabase(msg);
+            })
+        }
+    })
+}
 
 
 function onReceivingUserInfo(user_info,pvt_thread_id){
@@ -325,48 +365,6 @@ function chatHistoryScroll(e){
 }
 
 
-// $('#chat_section .simplebar-content-wrapper').on('scroll',function(e) { 
-//     var screenheight = parseInt($(document).height());
-//     var scrolledPix = parseInt($('#chat_section .simplebar-content-wrapper').scrollTop());
-//     var sum = screenheight + scrolledPix;
-//     // console.log("screen height",screenheight);
-//     // console.log("scrolled pix ",scrolledPix);
-//     // console.log("scroll vayecha kyare",this.scrollTop)
-//     // console.log("final sum",sum);
-//     var temp = $('#chat_section').height();
-//     // if(parseInt($('#chat_section .simplebar-content-wrapper').scrollTop())===0 && !isLoading){
-//     //     console.log("ma kasari true vaye")
-//     //     isLoading = true;
-//     //     showLoader();
-//     //     // getPrivateThreadMessages(false);
-//     //     // setTimeout(getPrivateThreadMessages,500);
-
-//     //    setTimeout(()=>{
-//     //        try{
-//     //         getPrivateThreadMessages();
-//     //        } catch (error) {
-//     //         console.log(error.message);
-//     //     } finally {
-//     //         hideLoader();
-//     //     }
-//     //     },300);
-//     //     $('#chat_section .simplebar-content-wrapper').scrollTop($('#chat_section .simplebar-content-wrapper').prop('offsetHeight'));
-//     //     hideLoader();
-//     //     console.log("getting messages now");
-//     // }
-//     var chatHistory = document.querySelector('#chat_section .simplebar-content-wrapper');
-//     console.log(chatHistory);
-//     console.log(chatHistory.scrollTop,chatHistory.scrollHeight,chatHistory.offsetHeight);
-//     if((Math.abs(chatHistory.scrollTop) + 2) >= (chatHistory.scrollHeight - chatHistory.offsetHeight)){
-//         // if(chatHistory.scrollTop<10){
-//         console.log("i am being true")
-//         getPrivateThreadMessages(false);
-//         // $('#chat_section').scrollTop($("#chat_section").prop("offsetHeight"));
-//     }
-//   });
-
-
-
 function selectUser(user_id){
     // Weird work-around for passing arg to url
     var url = myurl+"/account/profile/"+user_id;
@@ -389,14 +387,15 @@ function createOrReturnPrivateChat(id){
         success: (data)=>{
             console.log("SUCCESS chat",data);
             if(data['response'] == "Successfully got the chat."){
-                webSocketSetup(id);
+                webSocketSetup(id,data['private_thread_id']);
             }
             else if(data['response']!=null){
-                alert(data['response'])
+                showClientErrorModal(data.response);
             }
         },
         error: (data)=>{
             console.error("ERROR....",data)
+            showClientErrorModal(data)
             alert("Something went wrong.")
         },
     });

@@ -4,10 +4,10 @@ async function addToDatabase(messages_data){
     await db.collection('private_messages').add(messages_data);
 }
 
-function getMessagesByThread(t_id){
-    db.collection('private_messages').doc({private_thread_id: t_id}).get().then(document => {
-        return document;
-      })
+async function getdbMessages(){
+    var data = await db.collection('private_messages').get();
+      console.log("get messages by thread",data)
+      return data;
 }
 async function getMessagesById(m_id){
     var mydata = await db.collection('private_messages').doc({msg_id:parseInt(m_id)}).get();

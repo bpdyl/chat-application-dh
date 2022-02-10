@@ -1,7 +1,8 @@
+from email.headerregistry import Group
 from django.contrib.auth.models import User
 from accounts.models import CustomUser
 from rest_framework import serializers
-from .models import PrivateChatMessage, PrivateChatThread,GroupChatThread
+from .models import GroupChatMessage, PrivateChatMessage, PrivateChatThread,GroupChatThread
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -12,11 +13,19 @@ class PrivateChatMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = PrivateChatMessage
         fields = ['id','sender','message_content']
+class GroupChatMessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GroupChatMessage
+        fields = ['id','sender','content']
 
 class GroupChatThreadSerializer(serializers.ModelSerializer):
     class Meta:
         model = GroupChatThread
-        fields = '__all__'
+        fields = ['id','name','group_name','image','updated_at','admin','latest_msg']
+    # def get_latest_msg(self,obj):
+    #     msg = obj.last_msg()
+    #     msg_serializer = GroupChatMessageSerializer(msg)
+    #     return msg_serializer.data
 
 class PrivateChatThreadSerializer(serializers.ModelSerializer):
     first_user = UserSerializer(read_only = True)

@@ -265,14 +265,14 @@ img.profile-photo-lg{
 											<i class='fas fa-user'></i> Respond Request
 										</button>
 										<div class="dropdown-menu respond-menu">
-										<input type="button" class="btn btn-success"  value="Accept" id="respond-accept-btn-{{user_account.id}}" onclick='triggerAcceptFriendRequest("{{pending_request_id}}")'>
-										<input type="button" class="btn btn-danger" value="Decline" id="respond-decline-btn-{{user_account_id}}" onclick='triggerDeclineFriendRequest("{{pending_request_id}}")'>
+										<input type="button" class="btn btn-success respond-accept" data-requestid = "{{pending_request_id}}" value="Accept" id="respond-accept-btn" >
+										<input type="button" class="btn btn-danger respond-decline" data-requestid = "{{pending_request_id}}" value="Decline" id="respond-decline-btn">
 										</div>
 									  </div>
 									  {% endif %}
 									{% if is_friend %}
 									<div id="friends_function_div">
-									<a href="#" class="btn btn-outline-primary">Message</a>
+									<a href="#" id="message" data-userid="{{user_account.id}}" class="btn btn-outline-primary">Message</a>
 										<div class="btn-group">
 											<button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 												<i class='fas fa-check-double'></i>Friends
@@ -403,6 +403,7 @@ img.profile-photo-lg{
 						</div>
 					</div>
 				</form>
+				{% if is_self %}
 					<div class="row">
 						<div class="col-md-12">
 							<div class="card">
@@ -424,6 +425,7 @@ img.profile-photo-lg{
 							</div>
 						</div>
 					</div>
+				{% endif %}
 				</div>
 			</div>
 		</div>
@@ -480,6 +482,8 @@ setInterval(function(){
 </script> -->
 <script src="https://unpkg.com/localbase/dist/localbase.dev.js"></script>
 <script src="{% static 'utilityjs/db.js' %}"></script>
+<script src="{% static 'utilityjs/friendRequestHandle.js' %}" type="module"></script>
+
 <script type="text/javascript">
 	var privateChatWebSocket = new WebSocket(
         'ws://'

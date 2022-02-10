@@ -3,6 +3,7 @@ function preloadCallback(src, elementId){
     img.src = src
 }
 
+
 function preloadImage(imgSrc, elementId){
     // console.log("attempting to load " + imgSrc + " on element " + elementId)
     var objImagePreloader = new Image();
@@ -19,6 +20,9 @@ function preloadImage(imgSrc, elementId){
         }
     }
 }
+
+
+
 
 // var hljs = require('highlight.js');
 function validateText(str)
@@ -47,6 +51,7 @@ function validateText(str)
 	function clearChat(){
 		// $('#message_history').fadeOut(500).empty();
 		// $('#message_history').fadeIn(500);
+		console.log("clear chat is called");
 		document.getElementById('id_chat_log').innerHTML='';
 	}
 	
@@ -62,7 +67,8 @@ function validateText(str)
 		var temp_messages;
 
 		temp_messages = await getMessagesById(msg_id);
-		encrypted_message_content = temp_messages['message_content'];
+		if(temp_messages!=undefined){
+			encrypted_message_content = temp_messages['message_content'];
 		message_content = decrypt(encrypted_message_content,key);
 		user_id = temp_messages['user_id'];
 		sender_fname = data['first_name'];
@@ -128,7 +134,7 @@ function validateText(str)
 	if(!maintainPosition){
 		scrollToBottom();
 	}
-
+	}
 	})()
 
 	}
@@ -242,7 +248,12 @@ function validateText(str)
 	}
 
 	function setActiveThreadFriend(userId){
-		document.getElementById('id_friend_list_'+userId).parentElement.classList.add('active');
+		t = document.getElementById('id_friend_list_'+userId)
+		if(t!=null){
+		t.parentElement.classList.add('active');
+		}else{
+			console.log("t is null");
+		}
 	}
 	
 	function showClientErrorModal(message){
@@ -270,7 +281,7 @@ function update_thread_list_view(data){
 		
 								<div class="flex-1 overflow-hidden">
 									<h5 class="text-truncate text-white font-size-15 mb-1">${thread.second_user.first_name} ${thread.second_user.last_name}</h5>
-									<p class="chat-user-message text-truncate mb-0">Hey! there I'm available</p>
+									<p class="chat-user-message pvt-chat-message-list text-white text-truncate mb-0" msgid="${thread.last_msg.id}" ></p>
 								</div>
 								<div class="font-size-11">05 min</div>
 							</div>
@@ -288,7 +299,7 @@ function update_thread_list_view(data){
 		
 								<div class="flex-1 overflow-hidden">
 									<h5 class="text-truncate text-white font-size-15 mb-1">${thread.first_user.first_name} ${thread.first_user.last_name}</h5>
-									<p class="chat-user-message text-truncate mb-0">Hey! there I'm available</p>
+									<p class="chat-user-message pvt-chat-message-list text-white text-truncate mb-0" msgid="${thread.last_msg.id}" ></p>
 								</div>
 								<div class="font-size-11">05 min</div>
 							</div>
@@ -307,7 +318,7 @@ function update_thread_list_view(data){
 		
 								<div class="flex-1 overflow-hidden">
 									<h5 class="text-truncate text-white font-size-15 mb-1">${thread.group_name}</h5>
-									<p class="chat-user-message text-truncate mb-0">Hey! there I'm available</p>
+									<p class="chat-user-message text-white text-truncate mb-0">${thread.latest_msg}</p>
 								</div>
 								<div class="font-size-11">05 min</div>
 							</div>
@@ -316,6 +327,71 @@ function update_thread_list_view(data){
 			ulist.innerHTML += myhtml
 	}
 	})
+}
+
+function gk(){
+	var shk =JSON.parse(document.getElementById('keys').textContent);
+	var users_id = $("a[data-threadType='private-thread']").map(function(){
+		return $(this).data('userid');
+	}).get();
+	var csrf = document.getElementsByName('csrfmiddlewaretoken')[0].value;
+	$.ajax({
+		type:"POST",
+		url: window.location.origin+'/chat/gsk/',
+        dataType: "json",
+		data:{
+			'users_id':users_id,
+			'csrfmiddlewaretoken':csrf,		},
+		success: (data)=>{
+			console.log("gk ko data",data)
+
+			set_thread_list_messages(data['ks']);
+		},
+		error:(error_data)=>{
+			console.log(error_data);
+		},
+
+	})
+}
+var shk =JSON.parse(document.getElementById('keys').textContent);
+
+function set_thread_list_messages(s = shk){
+	$("a[data-threadType='private-thread'] p").filter(async function(i){
+		var msgids = $(this).attr('msgid');
+			thread_list_messages = await getMessagesById(msgids);
+			// console.log(thread_list_messages);
+			// console.log(thread_list_messages['message_content'],s[i]);
+			if(thread_list_messages!=undefined){
+				$(this).html(decrypt(thread_list_messages['message_content'],s[i]));	
+			}
+	});
+};
+
+
+const getMessagesByThread = (t_id)=>{
+	var t_m = getdbMessages();
+	console.log("not showing tm",t_m)
+	var msg_data,my_msg;
+	my_msg = t_m.then(collection=>{
+		if(collection!=undefined){
+			msg_data = filter_msg(collection,'private_thread_id',t_id);
+			return msg_data;
+		}else{
+			return [];
+		}
+	});
+	console.log("my msg of get message",my_msg);
+	return my_msg;
+}
+
+const filter_msg = (messages_chunk,field,field_value)=>{
+	var filtered_data = [];
+	messages_chunk.forEach(element => {
+		if(element[field] == field_value){
+			filtered_data.push(element);
+		}
+	});
+	return filtered_data;
 }
 
 
@@ -336,3 +412,6 @@ function update_thread_list_view(data){
 
 	const decrypt = (encryptedMessage, key) =>
 		XOREncryptDecrypt(encryptedMessage, key);
+
+
+

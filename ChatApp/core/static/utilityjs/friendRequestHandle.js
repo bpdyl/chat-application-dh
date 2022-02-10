@@ -1,15 +1,19 @@
+import redirectToChat from "./Module.js"
+
+
 //Constants for comparing the request status
-SEND_REQUEST_SUCCESS = "Friend request has been sent."
-REQUEST_ERROR = "Something went wrong."
-NO_USER_ID = "Unable to perform action. User id not available."
-REQUEST_ALREADY_SENT = "You have already sent the request."
-CANCEL_REQUEST_SUCCESS = "Friend request cancelled."
-REQUEST_ACCEPTED = "Friend request accepted."
-NOT_YOUR_REQUEST = "This is not your request to accept."
-NO_REQUEST_TO_ACCEPT = "Nothing to accept. Request doesnot exist."
-REQUEST_DECLINED = "Friend request declined."
-NO_REQUEST_TO_DECLINE = "Nothing to decline. Request doesnot exist."
-FRIEND_REMOVED = "Friend removed successfully."
+const SEND_REQUEST_SUCCESS = "Friend request has been sent."
+const REQUEST_ERROR = "Something went wrong."
+const NO_USER_ID = "Unable to perform action. User id not available."
+const REQUEST_ALREADY_SENT = "You have already sent the request."
+const CANCEL_REQUEST_SUCCESS = "Friend request cancelled."
+const REQUEST_ACCEPTED = "Friend request accepted."
+const NOT_YOUR_REQUEST = "This is not your request to accept."
+const NO_REQUEST_TO_ACCEPT = "Nothing to accept. Request doesnot exist."
+const REQUEST_DECLINED = "Friend request declined."
+const NO_REQUEST_TO_DECLINE = "Nothing to decline. Request doesnot exist."
+const FRIEND_REMOVED = "Friend removed successfully."
+
 
 
 //query selectors
@@ -21,6 +25,10 @@ const unfriendBtn = document.getElementById('unfriend_btn')
 const requestBtnDiv = document.getElementById('send_cancel_div')
 const friendListContainer = document.getElementById('friendlistcontainer')
 const viewFriendListBtn = document.getElementById('view-friends')
+
+
+
+
 //Websocket for friendrequest handling
 const roomName = JSON.parse(document.getElementById('room-name').textContent);
         const friendrequestSocket = new WebSocket(
@@ -112,15 +120,13 @@ const roomName = JSON.parse(document.getElementById('room-name').textContent);
                     </div>
                     <div class="col-md-4">
                         
-                        <input type="button" id="id_confirm_${sender.id}" onclick='triggerAcceptFriendRequest(${request.id})' class="btn btn-success" value="Confirm">
-                        <input type="button" id="id_decline_${sender.id}" onclick='triggerDeclineFriendRequest(${request.id})' class="btn btn-danger" value="Decline">
-                    
-    
+                        <input type="button" id="id_confirm_${sender.id}" data-rid="${request.id}" class="btn btn-success accept_request" value="Confirm">
+                        <input type="button" id="id_decline_${sender.id}" data-rid="${request.id}" class="btn btn-danger decline_request" value="Decline">
                     </div>    
             </div>
-            `
-            
+            ` 
         });
+        acceptDecline_event_listener();
     
         }
 
@@ -141,7 +147,7 @@ const roomName = JSON.parse(document.getElementById('room-name').textContent);
                 </div>
             `
         }else if(data['friends'].length>0){
-            console.log('This is weebsocket ',data['friends'])
+            console.log('This is weebsocket ',data['friends'],data['is_self'])
             console.log("friend remove vayepachi ko")
         friendListContainer.innerHTML = ''
         data['friends'].forEach((friend)=>{
@@ -156,15 +162,15 @@ const roomName = JSON.parse(document.getElementById('room-name').textContent);
                 <div class="options col-sm-3">
                     <button class="btn button-17 dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" role="button" ></button>
                     <div class="dropdown-menu dropdown-menu-center">
-                        <input type="button" class="btn btn-info "  value="Message" id="respond-accept-btn-${friend[0].id}" onclick=''>
-                        <input type="button" class="btn btn-danger " value="Unfriend" id="respond-decline-btn-${friend[0].id}" onclick='removeFriend(${friend[0].id},onFriendRemoved)'>
+                        <input type="button" class="btn btn-info message_friend" data-fid='${friend[0].id}' value="Message" id="message-friend-btn-${friend[0].id}">
+                        <input type="button" class="btn btn-danger unfriend" data-fid='${friend[0].id}' value="Unfriend" id="remove-friend-btn-${friend[0].id}">
                     </div>
                 </div>
             </div>
         </div>
             `
-        })
-    
+        });
+    messageAndUnfriend_event_listener();
     
     }
         };
@@ -229,7 +235,7 @@ const send_request = (id,uiUpdateFunction) => {
 
 if(sendBtn!=null){
 sendBtn.addEventListener('click',function(e){
-    receiver_id = e.target.getAttribute('data-id')
+    let receiver_id = e.target.getAttribute('data-id')
     send_request(receiver_id, onRequestSent)
 })
 }
@@ -278,7 +284,7 @@ const cancel_request = (id,uiUpdateFunction) => {
 
 if(cancelBtn!=null){
     cancelBtn.addEventListener('click',function(e){
-        receiver_id = e.target.getAttribute('data-id')
+        let receiver_id = e.target.getAttribute('data-id')
         cancel_request(receiver_id, onRequestCancelled);
     })
     }
@@ -363,10 +369,10 @@ var declineFriendRequest=(friend_request_id, uiUpdateFunction)=>{
     })
 }
 
-onFriendRequestAccepted = ()=>{
+const onFriendRequestAccepted = ()=>{
 console.log("hi hello")
 }
-onFriendRequestDeclined=()=>{
+const onFriendRequestDeclined=()=>{
 console.log("hello")
     
 }
@@ -379,6 +385,28 @@ function triggerDeclineFriendRequest(friend_request_id){
     declineFriendRequest(friend_request_id, onFriendRequestDeclined)
 } 
 
+
+let rab = document.getElementById('respond-accept-btn');
+let rdb = document.getElementById('respond-decline-btn');
+if(rab!=null){
+    rab.addEventListener('click',(e)=>{
+        triggerAcceptFriendRequest(e.target.dataset.requestid);
+    })
+}
+if(rdb!=null){
+    rdb.addEventListener('click',(e)=>{
+        triggerDeclineFriendRequest(e.target.dataset.requestid);
+    })
+}
+
+
+let messagebtn = document.getElementById('message')
+if(messagebtn!=null){
+    messagebtn.addEventListener('click',(e)=>{
+        redirectToChat(e.target.dataset.userid,csrf);
+    }
+    )
+}
 $(document).ready(function(){
     $(document).on("click","button",function(){
       console.log(this.id);
@@ -389,14 +417,17 @@ $(document).ready(function(){
 const requestContainer = document.getElementById('requestcontainer')
 
 const viewRequestBtn = document.getElementById('view-friend-request')
-viewRequestBtn.addEventListener('click',e=>{
-    console.log('clicked')
-    viewFriendRequests();
-    
-})
+if(viewRequestBtn!=null){
+    viewRequestBtn.addEventListener('click',e=>{
+        console.log('clicked')
+            viewFriendRequests();  
+    });
+}
 
-const auth_user_id = JSON.parse(document.getElementById('auth_user_id').textContent);
-const userId = JSON.parse(document.getElementById('user_account_id').textContent)
+let au_id = document.getElementById('auth_user_id');
+let uid = document.getElementById('user_account_id');
+const auth_user_id = au_id!=null ? JSON.parse(au_id.textContent):"";
+const userId =uid!=null ? JSON.parse(uid.textContent) : "";
 
 $(document).ready(function(){
     // setInterval(() => {
@@ -413,53 +444,60 @@ const viewFriendRequests =()=>{
         success: (data) => {
             console.log("ajax request ko ",data)
             if(data['sender']==null && data['friend_requests']==null){
-                requestContainer.innerHTML = `
+                if(requestContainer!=null){
+                    requestContainer.innerHTML = `
                     <div class="d-flex flex-row flex-grow-1 justify-content-center align-items-center p-4">
                     <p>You can't see other people friend request.</p>
                     </div>
                 
                 `
+                }
+
             }
             else if(data['sender'].length==0 && data['friend_requests'].length==0){
-                requestContainer.innerHTML = `
+                if(requestContainer!=null){
+                    requestContainer.innerHTML = `
                     <div class="d-flex flex-row flex-grow-1 justify-content-center align-items-center p-4">
                     <p>You don't have any friend requests.</p>
                     </div>
                 `
+                }
+
             }else{
-                requestContainer.innerHTML = ''
-                data['friend_requests'].forEach((request, index)=>{
-                    const sender = data['sender'][index];
-                    console.log(sender,request);
-                    requestContainer.innerHTML += `
-                    <div class="row requestcard">
-                                    
-                    <div class="col-md-8">
-                    <div class="row">
-                    <a href="${url}/account/profile/${sender.id}">
-                    <div class="col-md-3">
-                    <img src="${url}/media/${sender.profile_image}" alt="user" class="profile-image">
-                    </div>
-                    <div class="col-md-5">
-                            <h5><a href="${url}/account/profile/${sender.id}" style="text-decoration: none;" class="profile-link">${sender.first_name} ${sender.last_name}</a></h5>
-                            <p>@${sender.username}</p>
-                    </div>
-                    </a>
-                    </div>
-                    </div>
-                    <div class="col-md-4">
-                        
+                if(requestContainer!=null){
+                    requestContainer.innerHTML = ''
+                    data['friend_requests'].forEach((request, index)=>{
+                        const sender = data['sender'][index];
+                        console.log(sender,request);
+                        requestContainer.innerHTML += `
+                        <div class="row requestcard">
                                         
-                    <input type="button" id="id_confirm_${sender.id}" onclick='triggerAcceptFriendRequest(${request.id})' class="btn btn-success" value="Confirm">
-                    <input type="button" id="id_decline_${sender.id}" onclick='triggerDeclineFriendRequest(${request.id})' class="btn btn-danger" value="Decline">
-    
-                    </div>    
-            </div>
-            `
-                  });
-    }
-            
-            
+                        <div class="col-md-8">
+                        <div class="row">
+                        <a href="${url}/account/profile/${sender.id}">
+                        <div class="col-md-3">
+                        <img src="${url}/media/${sender.profile_image}" alt="user" class="profile-image">
+                        </div>
+                        <div class="col-md-5">
+                                <h5><a href="${url}/account/profile/${sender.id}" style="text-decoration: none;" class="profile-link">${sender.first_name} ${sender.last_name}</a></h5>
+                                <p>@${sender.username}</p>
+                        </div>
+                        </a>
+                        </div>
+                        </div>
+                        <div class="col-md-4">
+                            
+                                            
+                        <input type="button" id="id_confirm_${sender.id}" data-rid="${request.id}" class="btn btn-success accept_request" value="Confirm">
+                        <input type="button" id="id_decline_${sender.id}" data-rid="${request.id}" class="btn btn-danger decline_request" value="Decline">
+        
+                        </div>    
+                </div>
+                `
+                      });
+                      acceptDecline_event_listener();
+                }
+    }         
         }
 
     })
@@ -508,18 +546,20 @@ var onFriendRemoved = ()=>{
 
 if(unfriendBtn!=null){
     unfriendBtn.addEventListener('click',function(e){
-        removee_id = e.target.getAttribute('data-id')
+        let removee_id = e.target.getAttribute('data-id')
         console.log(removee_id)
         removeFriend(removee_id, onFriendRemoved);
     })
 }
 
 
+if(viewFriendListBtn!=null){
+    viewFriendListBtn.addEventListener('click',e=>{
+        viewFriendList();
+        
+    });
+}
 
-viewFriendListBtn.addEventListener('click',e=>{
-    viewFriendList();
-    
-})
 
 const viewFriendList =()=>{
     var requestView = $.ajax({
@@ -554,18 +594,51 @@ const viewFriendList =()=>{
                                 <div class="options col-sm-3">
                                     <button class="btn button-17 dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" role="button" ></button>
                                     <div class="dropdown-menu dropdown-menu-center">
-										<input type="button" class="btn btn-info "  value="Message" id="respond-accept-btn-${friend[0].id}" onclick=''>
-										<input type="button" class="btn btn-danger " value="Unfriend" id="respond-decline-btn-${friend[0].id}" onclick='removeFriend(${friend[0].id},onFriendRemoved)'>
+										<input type="button" class="btn btn-info message_friend" data-fid='${friend[0].id}'  value="Message" id="message-friend-btn-${friend[0].id}">
+										<input type="button" class="btn btn-danger unfriend" data-fid='${friend[0].id}' value="Unfriend" id="remove-friend-btn-${friend[0].id}" onclick=''>
 									</div>
                                 </div>
                             </div>
                         </div>
                     `
-                })
-            
-            
+                });
+            messageAndUnfriend_event_listener();  
             }
 
     }
+    });
+}
+
+function acceptDecline_event_listener() {
+    var acceptContainer = document.querySelectorAll(".accept_request");
+    var declineContainer = document.querySelectorAll(".decline_request");
+    [].map.call(acceptContainer, function(elem) {
+        elem.addEventListener("click",function(){
+        console.log(this.id);
+        triggerAcceptFriendRequest(this.dataset.rid);
+        }, false);
+    });
+    [].map.call(declineContainer, function(elem) {
+        elem.addEventListener("click",function(){
+        console.log(this.id);
+        triggerDeclineFriendRequest(this.dataset.rid);
+        }, false);
+    });
+}
+
+function messageAndUnfriend_event_listener() {
+    var container = document.querySelectorAll(".message_friend");
+    var unfriendContainer = document.querySelectorAll(".unfriend");
+    [].map.call(container, function(elem) {
+        elem.addEventListener("click",function(){
+        console.log(this.id);
+        redirectToChat(this.dataset.fid,csrf);
+        }, false);
+    });
+    [].map.call(unfriendContainer, function(elem) {
+        elem.addEventListener("click",function(){
+        console.log(this.id);
+        removeFriend(this.dataset.fid,onFriendRemoved);
+        }, false);
     });
 }

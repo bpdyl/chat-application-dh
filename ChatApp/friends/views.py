@@ -30,6 +30,7 @@ def view_friend_list(request, *args, **kwargs):
     if request.is_ajax():
         data = {}
         current_user = request.user
+        is_self = True
         user_id = kwargs.get('userId')
         print("user_id",user_id)
         if user_id:
@@ -52,6 +53,7 @@ def view_friend_list(request, *args, **kwargs):
                     print("ta friend chainas")
                     data['friends'] = None
                     return JsonResponse(data)
+                is_self = False
             friends = []
             current_user_friend_list = FriendList.objects.get(user = current_user)
             for friend in friend_list.friends.all():
@@ -64,6 +66,7 @@ def view_friend_list(request, *args, **kwargs):
                 }
                 friends.append((item, current_user_friend_list.is_mutual_friend(friend)))
             data['friends'] = friends
+            data['is_self'] = is_self
             friendlist_view_method = 'friend_request_operations'
             btn_room_group_name = "friend_request_"+room_name_postfix
             perform_broadcast(data,btn_room_group_name,friendlist_view_method)

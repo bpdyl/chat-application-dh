@@ -18,7 +18,7 @@ from django.urls import path,include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
-from core import views
+from accounts.views import register_user,login_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -26,8 +26,8 @@ urlpatterns = [
     path('account/',include('accounts.urls',namespace='accounts')),
     path('friends/',include('friends.urls',namespace='friends')),
 
-    path('',views.login_view,name="login"),
-    path('register/', views.register_user, name="signup"),
+    path('',login_view,name="login"),
+    path('register/',register_user, name="signup"),
     path("logout/", auth_views.LogoutView.as_view(next_page='login'), name="logout"),
 
 ]

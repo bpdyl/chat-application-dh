@@ -45,6 +45,7 @@
     <body>
         {{ private_thread_json |json_script:"private_thread" }}
         {{ current_user |json_script:"logged_in_user"}}
+        {{ keys |json_script:"keys"}}
         {{ my_user |json_script:"my_user_json" }}
         {{ null | json_script:"thread_distinguish"}}
         <div class="modal left fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
@@ -334,7 +335,7 @@
                                 
                                                         <div class="flex-1 overflow-hidden">
                                                             <h5 class="text-truncate text-white font-size-15 mb-1">{{thread.second_user.first_name}} {{thread.second_user.last_name}}</h5>
-                                                            <p class="chat-user-message text-truncate mb-0">Hey! there I'm available</p>
+                                                            <p class="chat-user-message pvt-chat-message-list text-white text-truncate mb-0" msgid="{{thread.last_msg.id}}">{{thread.last_msg.message_content}}</p>
                                                         </div>
                                                         <div class="font-size-11">05 min</div>
                                                     </div>
@@ -351,7 +352,7 @@
                                 
                                                         <div class="flex-1 overflow-hidden">
                                                             <h5 class="text-truncate text-white font-size-15 mb-1">{{thread.first_user.first_name}} {{thread.first_user.last_name}}</h5>
-                                                            <p class="chat-user-message text-truncate mb-0">Hey! there I'm available</p>
+                                                            <p class="chat-user-message pvt-chat-message-list text-white text-truncate mb-0" msgid="{{thread.last_msg.id}}">{{thread.last_msg.message_content}}</p>
                                                         </div>
                                                         <div class="font-size-11">05 min</div>
                                                     </div>
@@ -369,7 +370,7 @@
                             
                                                     <div class="flex-1 overflow-hidden">
                                                         <h5 class="text-truncate text-white font-size-15 mb-1">{{thread.group_name}}</h5>
-                                                        <p class="chat-user-message text-truncate mb-0">Hey! there I'm available</p>
+                                                        <p class="chat-user-message text-white text-truncate mb-0">{{thread.latest_msg}}</p>
                                                     </div>
                                                     <div class="font-size-11">05 min</div>
                                                 </div>
@@ -385,19 +386,6 @@
                         </div>
                         <!-- Start chats content -->
                     </div>
-                    <!-- End chats tab-pane -->
-                    
-                    <!-- Start groups tab-pane -->
-
-                    <!-- End groups tab-pane -->
-
-                    <!-- Start contacts tab-pane -->
-
-                    <!-- End contacts tab-pane -->
-                    
-                    <!-- Start settings tab-pane -->
-
-                    <!-- End settings tab-pane -->
                 </div>
                 <!-- end tab content -->
 
@@ -418,10 +406,10 @@
                                             <a href="javascript: void(0);" class="user-chat-remove text-muted font-size-16 p-2"><i class="ri-arrow-left-s-line"></i></a>
                                         </div>
                                         <div class="me-3 ms-0">
-                                            <img src="{% static 'assets/images/users/avatar-4.jpg' %}" id="topbar_otheruser_image" class="rounded-circle avatar-xs" alt="">
+                                            <img src="{% static 'images/nouser.jpg' %}" id="topbar_otheruser_image" class="rounded-circle avatar-xs" alt="">
                                         </div>
                                         <div class="flex-grow-1 overflow-hidden">
-                                            <h5 class="font-size-16 mb-0 text-truncate"><a href="#" id="topbar_otheruser_name" class="text-white user-profile-show">Doris Brown</a><i class="ri-record-circle-fill font-size-10 text-success d-inline-block ms-1"></i></h5>
+                                            <h5 class="font-size-16 mb-0 text-truncate"><a href="#" id="topbar_otheruser_name" class="text-white user-profile-show"></a><i class="ri-record-circle-fill font-size-10 text-success d-inline-block ms-1"></i></h5>
                                         </div>
                                     </div>
                                 </div>
@@ -429,7 +417,7 @@
                                     <ul class="list-inline user-chat-nav text-end mb-0">                                        
     
                                         <li class="list-inline-item d-lg-inline-block me-2 ms-0">
-                                            <button type="button" class="btn nav-btn user-profile-show">
+                                            <button type="button" id="user-profile-show-btn" class="btn nav-btn user-profile-show">
                                                 <i class="ri-more-fill text-white"></i>
                                             </button>
                                         </li>
@@ -447,6 +435,9 @@
                                 <div></div>
                             </div>
                             <div id="id_chat_log" class="d-flex chat-log">
+                                 
+                                <h3 style="margin-bottom: 300px;margin-left:150px;">Select the chat to start conversation</h5>
+
                             </div>
                         </div>
                         <!-- end chat conversation end -->
@@ -500,10 +491,10 @@
                         <div class="text-center p-0">
                         <a style="text-decoration: none;cursor: pointer;color: white;" id="other_user_info">
                             <div class="mb-4">
-                                <img src="{% static 'assets/images/users/avatar-4.jpg' %}" id="other_user_profile_image" class="rounded-circle avatar-lg img-thumbnail" alt="">
+                                <img src="{% static 'images/nouser.jpg' %}" id="other_user_profile_image" class="rounded-circle avatar-lg img-thumbnail" alt="">
                             </div>
 
-                            <h5 id="id_other_username" class="font-size-16 mb-1 text-white text-truncate">Doris Brown</h5>
+                            <h5 id="id_other_username" class="font-size-16 mb-1 text-white text-truncate"></h5>
                             </a>
                             <p style="color: white;" class=" text-truncate mb-1"><i class="ri-record-circle-fill font-size-10 text-success me-1 ms-0"></i> Active</p>
                         </div>
@@ -525,15 +516,15 @@
                                         <div class="accordion-body">
                                             <div>
                                                 <p class="text-muted mb-1">Name</p>
-                                                <h5 class="font-size-14" id="sidebar_user_name">Doris Brown</h5>
+                                                <h5 class="font-size-14" id="sidebar_user_name"></h5>
                                             </div>
                                             <div class="mt-4">
                                                 <p class="text-muted mb-1">Username</p>
-                                                <h5 class="font-size-14 mb-0" id="sidebar_user_username">California, USA</h5>
+                                                <h5 class="font-size-14 mb-0" id="sidebar_user_username"></h5>
                                             </div>
                                             <div class="mt-4">
                                                 <p class="text-muted mb-1">Email</p>
-                                                <h5 class="font-size-14" id="sidebar_user_email">adc@123.com</h5>
+                                                <h5 class="font-size-14" id="sidebar_user_email"></h5>
                                             </div>                                            
                                         </div>
                                     </div>
@@ -731,6 +722,7 @@
                                     </div>
                                     <div id="attachmedia" class="accordion-collapse collapse" aria-labelledby="attachfile3" data-bs-parent="#myprofile">
                                         <div id="lightgallery" class="myGallery">
+
                                             <img src="{% static 'images/banner.jpg' %}" alt="" srcset="">
                                             <img src="https://picsum.photos/190/190?1" class="shared_media_size img-thumbnail" alt="" />
                                             <img src="https://picsum.photos/190/190?2" class="shared_media_size img-thumbnail" alt=""  />
@@ -752,21 +744,21 @@
                     <!-- end User profile detail sidebar -->
                 </div>
             </div>
-            <!-- End User chat -->
-
-            <!-- audiocall Modal -->
-           
-            <!-- audiocall Modal -->
-
-            <!-- videocall Modal -->
-            <!-- end modal -->
         </div>
         <!-- end  layout wrapper -->
 
-        <!-- JAVASCRIPT -->
-        <script src="{% static 'utilityjs/base.js' %}"></script>
+        <!-- JAVASCRIPT LIBRARY -->
+
+
+        <script src="{% static 'assets/libs/jquery/jquery.min.js' %}"></script>
+        <script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+        <script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
+        <script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
+        <!--Custom JAVASCRIPT -->
+
         <script src="https://unpkg.com/localbase/dist/localbase.dev.js"></script>
         <script src="{% static 'utilityjs/db.js' %}"></script>
+        <script src="{% static 'utilityjs/base.js' %}"></script>
         <script async="async" defer="defer" src="{% static 'utilityjs/groupchat.js' %}" 
         {% if user.is_authenticated %} data-authenticated="true" {% endif %}></script>
         <script src="{% static 'utilityjs/searchuser.js' %}"></script>
@@ -782,30 +774,75 @@
                 break;
           }
         }
+
+        window.addEventListener("load", function(){
+        //everything is fully loaded, don't use me if you can use DOMContentLoaded
+        '{% if t_id%}'
+            onSelectFriend('{{t_id}}');
+        '{% elif gt_id %}'
+            onSelectGroup('{{gt_id}}');
+        '{% elif invalid_gt_id %}'
+            alert('{{invalid_gt_id}}');
+        '{% else %}'
+        console.log("Khucching")
+        '{% endif %}'
+        // '{% if private_thread %}'
+        //     console.log("cha raicha thread ta","{{private_thread.first_user}}")
+        //         if("{{private_thread.first_user}}" == "{{request.user}}"){
+        //         onSelectFriend("{{private_thread.second_user.id}}");
+        //         }
+        //         else{
+        //         onSelectFriend("{{private_thread.first_user.id}}",this);
+        //         }
+        //     '{% else %}'
+        //     console.log("khuchhing")
+        //         '{% if message_and_friends %}'
+        //         onSelectFriend("{{message_and_friends.0.friend.id}}",this);
+        //         '{% endif %}'
+        //     '{% endif %}'
+        //     '{% for x in message_and_friends %}'
+        //         preloadImage("{{x.friend.profile_image.url|safe}}", "id_friend_img_{{x.friend.id}}");
+        //     '{% endfor %}'
+        });
         </script>
         <script>
             var removeActiveThreadFriend = ()=>{
-    {% if chat_threads %}
-			{% for thread in chat_threads %}
-      {% if thread.first_user or thread.second_user %}
-        {% if thread.first_user == request.user %}
-				  document.getElementById("id_friend_list_{{thread.second_user.id}}").parentElement.classList.remove('active');
-          {% else %}
-				  document.getElementById("id_friend_list_{{thread.first_user.id}}").parentElement.classList.remove('active');
-          {% endif %}
-      {% else %}
-				  document.getElementById("id_friend_list_{{thread.id}}").parentElement.classList.remove('active');
-      {% endif %}
-			{% endfor %}
-		{% endif %}
+                '{% if chat_threads %}'
+                        '{% for thread in chat_threads %}'
+                            '{% if thread.first_user or thread.second_user %}'
+                                '{% if thread.first_user == request.user %}'
+                                    document.getElementById("id_friend_list_{{thread.second_user.id}}").parentElement.classList.remove('active');
+                                '{% else %}'
+                                    document.getElementById("id_friend_list_{{thread.first_user.id}}").parentElement.classList.remove('active');
+                                '{% endif %}'
+                            '{% else %}'
+                                document.getElementById("id_friend_list_{{thread.id}}").parentElement.classList.remove('active');
+                            '{% endif %}'
+                        '{% endfor %}'
+                '{% endif %}'
 
-}
+            }
     </script>
+    <script type="text/javascript">
+        $(document).ready(async function(){
+            let res = await fetch(window.location.origin+`/chat/chat_thread_list`,{
+            method:'GET',
+        
+        })
+        const r = await res.json()
+        console.log("r is r",r);
+        })
+    </script>
+        <script type="text/javascript">
+            $(".user-profile-show").click(function () {
+	        $(".user-profile-sidebar").show();
+            });
+            $("#user-profile-show-btn").trigger('click');
+            '{% if keys %}'
+                set_thread_list_messages();
+            '{% endif %}'
+        </script>
 
-        <script src="{% static 'assets/libs/jquery/jquery.min.js' %}"></script>
-        <script src="{% static 'assets/libs/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-        <script src="{% static 'assets/libs/simplebar/simplebar.min.js' %}"></script>
-        <script src="{% static 'assets/libs/node-waves/waves.min.js' %}"></script>
         <script type="text/javascript">
             var ulist = document.getElementById('contact_list_ul');
             $( document ).ready(function() {

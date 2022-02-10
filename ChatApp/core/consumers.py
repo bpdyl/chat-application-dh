@@ -23,36 +23,28 @@ from friends.models import FriendList
 
 
 
-# def generate_test_keys():
-#     data = {}
-#     bob = DiffieHellman()
-#     alice = DiffieHellman()
-#     private_key_bob,public_key_bob = bob.get_private_key(), bob.generate_public_key()
-#     private_key_alice,public_key_alice = alice.get_private_key(), alice.generate_public_key()
-#     alice_shared_key = alice.generate_shared_key(public_key_bob)
-#     bob_shared_key = bob.generate_shared_key(public_key_alice)
-#     print("ma bob shared key",bob_shared_key)
-#     print("ma alice shared key",alice_shared_key)
-#     bob_second_public_key = bob.generate_second_public_key(bob_shared_key)
-#     alice_second_public_key = alice.generate_second_public_key(alice_shared_key)
-#     bob_second_shared_key = bob.generate_second_shared_key(alice_second_public_key,bob_shared_key)
-#     alice_second_shared_key = alice.generate_second_shared_key(bob_second_public_key,alice_shared_key)
-#     data['private_key_bob'] = private_key_bob
-#     data['public_key_bob'] = public_key_bob
-#     data['private_key_alice'] = private_key_alice
-#     data['public_key_bob'] = public_key_alice
-#     data['shared_key'] = alice_second_shared_key
-#     return json.dumps(data)
+def generate_test_keys(current_user,target_user):
+    data = {}
+    current_user = DiffieHellman()
+    target_user = DiffieHellman()
+    private_key_current_user,public_key_current_user = current_user.get_private_key(), current_user.generate_public_key()
+    private_key_target_user,public_key_target_user = target_user.get_private_key(), target_user.generate_public_key()
+    target_user_shared_key = target_user.generate_shared_key(public_key_current_user)
+    current_user_shared_key = current_user.generate_shared_key(public_key_target_user)
+    current_user_second_public_key = current_user.generate_second_public_key(current_user_shared_key)
+    target_user_second_public_key = target_user.generate_second_public_key(target_user_shared_key)
+    current_user_second_shared_key = current_user.generate_second_shared_key(target_user_second_public_key,current_user_shared_key)
+    target_user_second_shared_key = target_user.generate_second_shared_key(current_user_second_public_key,target_user_shared_key)
+    data['private_key_current_user'] = private_key_current_user
+    data['public_key_current_user'] = public_key_current_user
+    data['private_key_target_user'] = private_key_target_user
+    data['public_key_current_user'] = public_key_target_user
+    data['shared_key_target_user'] = target_user_second_shared_key
+    data['shared_key_current_user'] = current_user_second_shared_key
+
+
+    return json.dumps(data)
     
-# def generate_shared_key():
-#     try:
-#         local_private_key = request.args.get("local_private_key")
-#         remote_public_key = request.args.get("remote_public_key")
-#         shared_key = DiffieHellman.gen_shared_key_static(
-#             local_private_key, remote_public_key
-#         )
-#     except:
-#          return JsonResponse({"message": "Invalid public key"})
 
 def generate_shared_keys(current_user,target_user):
     try:
@@ -73,14 +65,13 @@ def generate_shared_keys(current_user,target_user):
     except:
         raise ClientError(204,"Invalid public key")
         
-
-
 class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         user = self.scope['user']
         await self.accept()
         self.room_name = f'private_thread_{user.id}'
         self.me = self.scope.get('user')
+        print("yo me",self.me)
         self.other_username = self.scope['url_route']['kwargs']['friendId']
         print("yo other user",self.other_username)
         self.other_user = await sync_to_async(CustomUser.objects.get)(id= self.other_username)
@@ -118,8 +109,11 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
         print("yo command ho ",command)
         try:
             if command == "join":
+                t = await get_thread_or_error(self.private_thread.id,self.me)
                 shared_key = await sync_to_async(generate_shared_keys)(self.scope['user'],self.other_user)
                 my_keys = json.loads(shared_key)
+                test_shared_keys = await sync_to_async(generate_test_keys)(self.scope['user'],self.other_user)
+                test_shared_keys = json.loads(test_shared_keys)
                 await self.channel_layer.group_send(
                         self.room_name,
                         {
@@ -127,12 +121,14 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
                             "join":str(self.private_thread.id),
                             "thread_type":"private_thread",
                             "my_keys":my_keys,
+                            "shared_key_target_user":test_shared_keys['shared_key_target_user'],
+                            "shared_key_current_user":test_shared_keys['shared_key_current_user'],  
                         }
                     )
 
             
             #when someone message to the chat 
-            
+
             elif command == "private_chat":
                 message = content.get("message")
                 message_type = content['message_type']
@@ -140,6 +136,7 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
                 send_to_id = content['send_to']
                 sent_by_user = await self.get_user_object(sent_by_id)
                 send_to_user = await self.get_user_object(send_to_id)
+
                 if not sent_by_user:
                     print("Error:: sent by user is incorrect")
                 if not send_to_user:
@@ -169,7 +166,7 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
                         "command": command,
                         "send_to":send_to_id,
                         "sent_by":sent_by_id,
-                        "thread_id":self.private_thread.id,  
+                        "thread_id":self.private_thread.id,
                     }
                     
                 )
@@ -188,7 +185,7 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
                         "command": command,
                         "send_to":send_to_id,
                         "sent_by":sent_by_id, 
-                        "thread_id":self.private_thread.id,  
+                        "thread_id":self.private_thread.id,
                     }
                     
                 )
@@ -204,6 +201,19 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
                     raise ClientError(204,"Something went wrong while trying to fetch messages metadata.")
 
                 await self.display_progress_bar(False)
+
+            elif command == 'idb_broadcast':
+                other_user_chat_room = f'private_thread_{self.other_user.id}'
+                await self.channel_layer.group_send(
+                    other_user_chat_room,
+                    {
+                        "type": "websocket_idbBroadcast",
+                        "command":command,
+                        "user_id":self.me.id,
+                        "username":self.me.username,
+                        "idb_message":content['idb_msg']
+                    }
+                )
 
             elif command == 'get_user_info':
                 await self.display_progress_bar(True)
@@ -243,6 +253,8 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
         await self.send_json({
             'joining_room': str(self.private_thread.id),
             'thread_type': event['thread_type'],
+            'shared_key_target_user':event['shared_key_target_user'],
+            'shared_key_current_user':event['shared_key_current_user'],      
             'my_keys':event['my_keys'],
         })
 
@@ -263,17 +275,26 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
             'user_id': event['user_id'],
             'send_to': event['send_to'],
             'sent_by':event['sent_by'],
-            'private_thread_id':event['thread_id']
+            'private_thread_id':event['thread_id'],
         }))
         
     async def websocket_typing(self, event):
         await self.send_json((
             {
-                'text': event['text'],
+                'text': event['idb_message'],
                 'command': event['command'],
                 'user': event['user'],
             }
         ))
+    async def websocket_idbBroadcast(self, event):
+        await self.send_json((
+            {
+                'idb_message': event['idb_message'],
+                'command': event['command'],
+                'user_id': event['user_id'],
+                'username':event['username'],
+            }
+        ))    
     
 
     async def broadcast_messages_data(self,messsages_metadata,new_page_number,firstAttempt):
@@ -543,7 +564,7 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
     async def websocket_join(self,event):
         room_id = event['join']
         await self.send_json({
-            'joining_room': str(room_id),
+            'joining_group_chat': str(room_id),
             'thread_type': event['thread_type'],
             "requested_by":event['requested_by'],
 

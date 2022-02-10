@@ -276,8 +276,6 @@ class DiffieHellman:
         # check if the other public key is valid based on NIST SP800-56
         l = local_private_key_str
         p = remote_public_key_str
-        print("yo local private key",l)
-        print("yo remote public static",p)
         if 2 <= remote_public_key_str and remote_public_key_str <= prime - 2:
             if pow(remote_public_key_str, (prime - 1) // 2, prime) == 1:
                 return True
@@ -290,7 +288,6 @@ class DiffieHellman:
         local_private_key = int(local_private_key_str, base=16)
         remote_public_key = int(remote_public_key_str, base=16)
         prime = primes[group]["prime"]
-        print("yo static ko prime",prime)
         if not DiffieHellman.is_valid_public_key_static(
             local_private_key, remote_public_key, prime
         ):

@@ -4,6 +4,15 @@ var groupThreadId = null;
 function onSelectGroup(threadId,ele){
     console.log("group select: " + threadId)
     // createOrReturnPrivateChat(threadId)
+    var nextURL = window.location.origin+'/chat/?gt_id='+threadId;
+    var nextTitle = 'My new page title';
+    var nextState = { additionalInformation: 'Updated the URL with JS' };
+
+    // This will create a new entry in the browser's history, without reloading
+    window.history.pushState(nextState, nextTitle, nextURL);
+
+    // This will replace the current entry in the browser's history, without reloading
+    window.history.replaceState(nextState, nextTitle, nextURL)
     removeActiveThreadFriend();
 
     setActiveThreadFriend(threadId);
@@ -57,13 +66,13 @@ function groupChatWebSocketSetup(thread_id){
             return;
         }
 
-        if (data.joining_room){
-            console.log("Joining room " + data.joining_room);
-            var secret_key = document.getElementById('topbar_otheruser_name');
-            secret_key.removeAttribute('data-val');
-            thread_distinguish.innerHTML = data.thread_type;
+        if (data.joining_group_chat){
             console.log("requested by and logged user",data['requested_by'],logged_user.username)
             if(data['requested_by'] ==logged_user.username){
+                console.log("Joining room " + data.joining_group_chat);
+                var secret_key = document.getElementById('topbar_otheruser_name');
+                secret_key.removeAttribute('data-val');
+                thread_distinguish.innerHTML = data.thread_type;
                 getGroupChatInfo();
                 showLoader();
                 getGroupThreadMessages(true);
@@ -77,11 +86,11 @@ function groupChatWebSocketSetup(thread_id){
         if(data.msg_type == 0 || data.msg_type == 1 || data.msg_type == 2 || data.msg_type ==3 || data.msg_type == 4){
             $.ajax({
                 type: "GET",
-      
                 url: window.location.origin+'/chat/chat_thread_list/',
                 timeout: 5000,
                 success: (data) => {
                     update_thread_list_view(data);
+                    gk();
                 }
             });
             console.log("group chat message gayera aayo");
@@ -381,17 +390,40 @@ function createConnectedDisconnectedElement(msg, msd_id, profile_image, user_id)
 
     preloadImage(profile_image, profile_image_id)
  }
+ function test_url(mid){
+    const nextURL = window.location.origin+'/account/profile/'+mid;
+    const nextTitle = 'My new page title';
+    const nextState = { additionalInformation: 'Updated the URL with JS' };
+
+    // This will create a new entry in the browser's history, without reloading
+    window.history.pushState(nextState, nextTitle, nextURL);
+
+    // This will replace the current entry in the browser's history, without reloading
+    window.history.replaceState(nextState, nextTitle, nextURL)
+}
 function group_members_display(members,admin_id,admin_username){
     $('#group_members_wrapper').removeClass("d-none");
     $('#sidebar_simplebar_grp_members').html('Chat Members');
     $('#group_members').html('');
     var member_type;
+    var is_self;
+    var can_kick;
+
     members.forEach(member => {
         if(member.id == admin_id && member.username ==admin_username){
             member_type = 'Admin';
         }else{
             member_type = 'Member';
         }
+        //determine if is_self = true or false
+        is_self = true ? logged_user.id == member.id : false;
+
+        //determine if the currently logged in user can kick the members or not; to kick others you have to be admin/creator of that group
+        if(logged_user.id == admin_id && logged_user.username ==admin_username){
+            member_type == 'Member' ? can_kick = true : can_kick = false; 
+        }else if(logged_user.id!=admin_id){
+            can_kick = false;
+        }    
         document.getElementById('group_members').innerHTML +=
         `<div class="card p-2 border mb-2">
         <div class="d-flex align-items-center">
@@ -419,17 +451,20 @@ function group_members_display(members,admin_id,admin_username){
                             <i class="ri-more-fill"></i>
                         </a>
                         <div class="dropdown-menu dropdown-menu-end">
-                            <a class="dropdown-item" href="#">Action</a>
-                            <a class="dropdown-item" href="#">Another action</a>
-                            <div class="dropdown-divider"></div>
-                            <a class="dropdown-item" href="#">Delete</a>
+                            <a class="dropdown-item direct_message ${is_self?"d-none":"block"}" onclick='onSelectFriend(${member.id})' href="#">Message</a>
+                            <a class="dropdown-item" href="${window.location.origin+'/account/profile/'+member.id}">View Profile</a>
+                            <a class="dropdown-item" style="display:${can_kick?"block":"none"}" href="#">Kick</a>
+                            <a class="dropdown-item" style="display:${is_self?"block":"none"}" href="#">Leave Group</a>
                         </div>
                     </li>
                 </ul>
             </div>
         </div>
     </div>`
+
     });
+
+
 }
 
 var submitbutton = $('#chat_name_change_submit');

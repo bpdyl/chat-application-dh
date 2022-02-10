@@ -565,7 +565,7 @@ group_image.onchange = evt => {
 }
 function onStart(){
   
-  {% if private_thread %}
+  '{% if private_thread %}'
   console.log("cha raicha thread ta")
     if("{{private_thread.first_user}}" == "{{request.user}}"){
       onSelectFriend("{{private_thread.second_user.id}}")
@@ -573,35 +573,35 @@ function onStart(){
     else{
       onSelectFriend("{{private_thread.first_user.id}}",this)
     }
-  {% else %}
+  '{% else %}'
   console.log("khuchhing")
-    {% if message_and_friends %}
+    '{% if message_and_friends %}'
       onSelectFriend("{{message_and_friends.0.friend.id}}",this)
-    {% endif %}
-  {% endif %}
-  {% for x in message_and_friends %}
+    '{% endif %}'
+  '{% endif %}'
+  '{% for x in message_and_friends %}'
     console.log("image preloading")
     preloadImage("{{x.friend.profile_image.url|safe}}", "id_friend_img_{{x.friend.id}}")
-  {% endfor %}
+  '{% endfor %}'
 }
   </script>
   
   <script>
 
 var removeActiveThreadFriend = ()=>{
-    {% if chat_threads %}
-			{% for thread in chat_threads %}
-      {% if thread.first_user or thread.second_user %}
-        {% if thread.first_user == request.user %}
+    '{% if chat_threads %}'
+			'{% for thread in chat_threads %}'
+      '{% if thread.first_user or thread.second_user %}'
+        '{% if thread.first_user == request.user %}'
 				  document.getElementById("id_friend_list_{{thread.second_user.id}}").classList.remove('active-contact');
-          {% else %}
+          '{% else %}'
 				  document.getElementById("id_friend_list_{{thread.first_user.id}}").classList.remove('active-contact');
-          {% endif %}
-      {% else %}
+          '{% endif %}'
+      '{% else %}'
 				  document.getElementById("id_friend_list_{{thread.id}}").classList.remove('active-contact');
-      {% endif %}
-			{% endfor %}
-		{% endif %}
+      '{% endif %}'
+			'{% endfor %}'
+		'{% endif %}'
 
 		// clear the profile image and username of current chat
 		document.getElementById("other_user_profile_image").classList.add("d-none")
