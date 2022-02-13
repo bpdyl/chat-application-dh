@@ -2,7 +2,6 @@ var groupChatWebSocket = null;
 var groupThreadId = null;
 
 function onSelectGroup(threadId,ele){
-    console.log("group select: " + threadId)
     // createOrReturnPrivateChat(threadId)
     var nextURL = window.location.origin+'/chat/?gt_id='+threadId;
     var nextTitle = 'My new page title';
@@ -17,8 +16,6 @@ function onSelectGroup(threadId,ele){
 
     setActiveThreadFriend(threadId);
     $(".user-chat").addClass("user-chat-show");
-
-    console.log("i am called by ",logged_user.username);
     groupChatWebSocketSetup(threadId);
 
 
@@ -36,7 +33,6 @@ function closegroupWebSocket(){
 }
 
 function groupChatWebSocketSetup(thread_id){
-    console.log("web socket for "+thread_id)
     groupThreadId = thread_id
     // closeWebSocket();
     clearChat();
@@ -54,22 +50,18 @@ function groupChatWebSocketSetup(thread_id){
     )
 
     groupChatWebSocket.onmessage = function(e){
-        console.log("Websocket message aayo hai");
         const data = JSON.parse(e.data);
-        console.log("data display",data.display_progress_bar)
+        console.log(data)
 		displayChatroomLoadingSpinner(data.display_progress_bar)
 
         if(data.error){
-            console.log("error vako ho")
             console.error(data.error + ": "+data.message)
             showClientErrorModal(data.message)
             return;
         }
 
         if (data.joining_group_chat){
-            console.log("requested by and logged user",data['requested_by'],logged_user.username)
             if(data['requested_by'] ==logged_user.username){
-                console.log("Joining room " + data.joining_group_chat);
                 var secret_key = document.getElementById('topbar_otheruser_name');
                 secret_key.removeAttribute('data-val');
                 thread_distinguish.innerHTML = data.thread_type;
@@ -93,8 +85,6 @@ function groupChatWebSocketSetup(thread_id){
                     gk();
                 }
             });
-            console.log("group chat message gayera aayo");
-            console.log(data);
            let active_grp_thread =  document.getElementById('topbar_otheruser_name').dataset.group_thread_id
             if(active_grp_thread == data.group_thread_id){
             appendGroupChatMessage(data,false,true);
@@ -115,7 +105,6 @@ function groupChatWebSocketSetup(thread_id){
     }
 
     groupChatWebSocket.addEventListener("open", function(e){
-        console.log("ChatSocket OPEN")
         // join chat room
         if(unsafe_authenticated){
             groupChatWebSocket.send(JSON.stringify({
@@ -125,7 +114,7 @@ function groupChatWebSocketSetup(thread_id){
         }
     })
     groupChatWebSocket.onopen = function(e){
-        console.log("i am connected to group")
+        // console.log("i am connected to group")
     }
     groupChatWebSocket.onclose = function(){
         console.error("group chat socket closed.")
@@ -172,7 +161,6 @@ function getGroupChatInfo(){
 
 
 function onReceivingGroupChatInfo(group_chat_info){
-    console.log("group chat info ",group_chat_info)
     document.getElementById('id_other_username').innerHTML = group_chat_info['group_name']
     document.getElementById('topbar_otheruser_name').innerHTML = group_chat_info['group_name'];
     document.getElementById('topbar_otheruser_name').href ='#';
@@ -213,16 +201,13 @@ function onReceivingGroupChatInfo(group_chat_info){
     document.getElementById('change_group_name').setAttribute("value",group_chat_info['group_name']);
     document.getElementById('change_group_name').setAttribute("data-threadid",group_chat_info['thread_id']);
 
-    group_members_display(group_chat_info['members'],group_chat_info['admin_id'],group_chat_info['admin_username']);
+    group_members_display(group_chat_info['members'],group_chat_info['admin_id'],group_chat_info['admin_username'],group_chat_info['thread_id']);
 
     preloadImage(group_chat_info['image'], 'other_user_profile_image')
     preloadImage(group_chat_info['image'],'topbar_otheruser_image')
 }
 
 var onReceivingGroupMessagesResponse = (messages,new_page_number,firstAttempt)=>{
-
-    console.log("yo messages checking group",messages)
-
     if(messages!= null && messages != 'undefined' && messages!="None"){
         setPageNumber(new_page_number);
         messages.forEach(element => {
@@ -234,7 +219,6 @@ var onReceivingGroupMessagesResponse = (messages,new_page_number,firstAttempt)=>
         }
         
     }else{
-        console.log("khattam no messages");
         paginationKhattam();
     }
 }
@@ -246,7 +230,6 @@ function appendGroupChatMessage(data, maintainPosition, isNewMessage){
     user_id = data['user_id']
     profile_image = data['profile_image']
     timestamp = data['natural_timestamp']
-    console.log("append chat message: " + messageType)
     new_chat_name = data['new_chat_name']
     var msg = "";
     var username = ""
@@ -284,7 +267,6 @@ function appendGroupChatMessage(data, maintainPosition, isNewMessage){
 }
 
 function createChatMessageElement(data,maintainPosition, isNewMessage){
-    // console.log("instant msg appending");
     msg_id= data['msg_id'];
     user_id = data['user_id'];
     message_content = data['message_content']
@@ -403,7 +385,7 @@ function createConnectedDisconnectedElement(msg, msd_id, profile_image, user_id)
     // This will replace the current entry in the browser's history, without reloading
     window.history.replaceState(nextState, nextTitle, nextURL)
 }
-function group_members_display(members,admin_id,admin_username){
+function group_members_display(members,admin_id,admin_username,group_thread_id){
     $('#group_members_wrapper').removeClass("d-none");
     $('#sidebar_simplebar_grp_members').html('Chat Members');
     $('#group_members').html('');
@@ -454,8 +436,8 @@ function group_members_display(members,admin_id,admin_username){
                         <div class="dropdown-menu dropdown-menu-end">
                             <a class="dropdown-item direct_message ${is_self?"d-none":"block"}" onclick='onSelectFriend(${member.id})' href="#">Message</a>
                             <a class="dropdown-item" href="${window.location.origin+'/account/profile/'+member.id}">View Profile</a>
-                            <a class="dropdown-item remove-member" data-removee=${member.id} data-remover=${admin_id} style="display:${can_kick?"block":"none"}" href="#">Kick</a>
-                            <a class="dropdown-item leave-group" data-leave=${member.id} style="display:${is_self?"block":"none"}" href="#">Leave Group</a>
+                            <a class="dropdown-item remove-member" data-removee=${member.id} style="display:${can_kick?"block":"none"}" href="#">Kick</a>
+                            <a class="dropdown-item leave-group" style="display:${is_self?"block":"none"}" href="#">Leave Group</a>
                         </div>
                     </li>
                 </ul>
@@ -464,56 +446,101 @@ function group_members_display(members,admin_id,admin_username){
     </div>`
 
     });
+    groupActions_event_listener(group_thread_id);
 
 
 }
-function groupActions_event_listener() {
+function groupActions_event_listener(gt_id) {
     var kickContainer = document.querySelectorAll(".remove-member");
-    var leaveContainer = document.querySelectorAll(".decline_request");
+    var leaveContainer = document.querySelectorAll(".leave-group");
     [].map.call(kickContainer, function(elem) {
         elem.addEventListener("click",function(){
-        console.log(this.id);
-        kickMemberFromGroup(this.dataset.kick);
+           let removee_id = this.dataset.removee
+        kickMemberFromGroup(removee_id,gt_id);
         }, false);
     });
     [].map.call(leaveContainer, function(elem) {
         elem.addEventListener("click",function(){
-        console.log(this.id);
-        leaveGroup(this.dataset.leave);
+            let leaver_id = this.dataset.leaver
+        leaveGroup(gt_id);
         }, false);
     });
 }
-var submitbutton = $('#chat_name_change_submit');
-var orig = [];
-$.fn.getType = function () {
-    return this[0].tagName == "INPUT" ? $(this[0]).attr("type").toLowerCase() : this[0].tagName.toLowerCase();
+
+function kickMemberFromGroup(removee_id,gt_id){
+    var csrftoken = document.getElementsByName('csrfmiddlewaretoken')[0].value;
+    let fd = new FormData();
+    fd.append("csrfmiddlewaretoken",csrftoken)
+    fd.append("removee_id",parseInt(removee_id))
+    fd.append("thread_id",parseInt(gt_id))
+    $.ajax({
+        type:"POST",
+        datatype:"json",
+        url:"remove_group_member/",
+        data:fd,
+        success:(response)=>{
+            console.log("kick member from group",response)
+        },
+        error:(response)=>{
+            alert(response);
+        },
+        cache: false,
+        contentType: false,
+        processData: false,
+    });
 }
 
-$("#chat_name_change_form :input").each(function () {
-    var type = $(this).getType();
-    var tmp = {
-        'type': type,
-        'value': $(this).val()
-    };
-    orig[$(this).attr('id')] = tmp;
-});
+function leaveGroup(gt_id){
+    var csrftoken = document.getElementsByName('csrfmiddlewaretoken')[0].value;
+    let fd = new FormData();
+    fd.append("csrfmiddlewaretoken",csrftoken)
+    fd.append("thread_id",parseInt(gt_id))
+    $.ajax({
+        type:"POST",
+        datatype:"json",
+        url:"leave_group/",
+        data:fd,
+        success:(response)=>{
+            console.log("leave group",response)
+        },
+        error:(response)=>{
+            alert(response);
+        },
+        cache: false,
+        contentType: false,
+        processData: false,
+    });
+}
+
+var submitbutton = $('#chat_name_change_submit');
+// var orig = [];
+// $.fn.getType = function () {
+//     return this[0].tagName == "INPUT" ? $(this[0]).attr("type").toLowerCase() : this[0].tagName.toLowerCase();
+// }
+
+// $("#chat_name_change_form :input").each(function () {
+//     var type = $(this).getType();
+//     var tmp = {
+//         'type': type,
+//         'value': $(this).val()
+//     };
+//     orig[$(this).attr('id')] = tmp;
+// });
+
+
+$('#gc_name_change_modal').on('hidden.bs.modal', function () {
+    $(this).find('form').trigger('reset');
+})
 
 $('#chat_name_change_form :input').bind('change keyup', function () {
-
+    var current_chat_name = document.getElementById('topbar_otheruser_name').textContent;
     var disable = true;
-    $("form :input").each(function () {
-        var type = $(this).getType();
-        var id = $(this).attr('id');
-
-        if (type == 'text') {
-            disable = (orig[id].value == $(this).val());
-        }
-
-        if (!disable) {
-            return false; // break out of loop
-        }
-    });
-
+    console.log('current chat name',current_chat_name,$(this).val());
+    if(current_chat_name == $(this).val()){
+        disable = true;
+    }else{
+        disable = false;
+    }
     submitbutton.prop('disabled', disable);
 });
 
@@ -521,14 +548,10 @@ $('#chat_name_change_form :input').bind('change keyup', function () {
 
 $('#chat_name_change_submit').on('click',()=>{
     var csrftoken = document.getElementsByName('csrfmiddlewaretoken')[0].value;
-    console.log("csrf",csrftoken)
     const fd = new FormData();
     fd.append('csrfmiddlewaretoken',csrftoken);
     fd.append('thread_id',$('#change_group_name').data('threadid'));
     fd.append('change_group_name',$('#change_group_name').val());
-    for (var value of fd.values()) {
-        console.log(value);
-     }
     $.ajax({
         type:"POST",
         datatype:"json",
@@ -538,6 +561,7 @@ $('#chat_name_change_submit').on('click',()=>{
             var new_gc_name = response['new_gc_name'];
             if(response['status']=='changed'){
                 $('#topbar_otheruser_name').html(new_gc_name);
+                $('#chat_name_change_form :input').attr('value',new_gc_name);
                 $('#id_other_username').html(new_gc_name);
                 $('#chat_change_name_close_btn').click();
             }
@@ -554,14 +578,10 @@ $('#chat_name_change_submit').on('click',()=>{
 
 $('#chat_photo_change_submit').on('click',()=>{
     var csrftoken = document.getElementsByName('csrfmiddlewaretoken')[0].value;
-    console.log("csrf",csrftoken)
     const fd = new FormData();
     fd.append('csrfmiddlewaretoken',csrftoken);
     fd.append('thread_id',$('#change_group_name').data('threadid'));
     fd.append('change_group_photo',$('#change_gc_photo')[0].files[0]);
-    for (var value of fd.values()) {
-        console.log(value);
-     }
     $.ajax({
         type:"POST",
         datatype:"json",

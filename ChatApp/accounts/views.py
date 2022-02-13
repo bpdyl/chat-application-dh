@@ -163,10 +163,12 @@ def get_redirect_if_exists(request):
 def login_view(request):
     context = {}
     current_user = request.user
-    if current_user.is_authenticated:
-        return redirect("core:conversation")
     destination = get_redirect_if_exists(request)
     print("Destination",destination)
+    if current_user.is_authenticated:
+        if destination:
+            return redirect(destination)
+        return redirect("core:conversation")
     if request.POST:
         form = AccountAuthenticationForm(request.POST)
         if form.is_valid():

@@ -47,16 +47,41 @@ function validateText(str)
 	var setPageNumber = (pageNumber)=>{
 		document.getElementById('page_number_id').innerHTML = pageNumber;
 	}
+
+	let hexString = "0123456789abcdef";
+	let randomColor = () => {
+		let hexCode = "#";
+		for( i=0; i<6; i++){
+			hexCode += hexString[Math.floor(Math.random() * hexString.length)];
+		}
+		return hexCode;
+	}
 	
+	let generateGrad = (elem) => {
+		let colorOne = randomColor();
+		let colorTwo = randomColor();
+		let angle = Math.floor(Math.random() * 360);
+		elem.style.background = `linear-gradient(${angle}deg, ${colorOne}, ${colorTwo})`;
+		elem.value = `background: linear-gradient(${angle}deg, ${colorOne}, ${colorTwo});`;
+	}
 	function clearChat(){
-		// $('#message_history').fadeOut(500).empty();
-		// $('#message_history').fadeIn(500);
-		console.log("clear chat is called");
 		document.getElementById('id_chat_log').innerHTML='';
+		let randomColor = Math.floor(Math.random()*16777215).toString(16);
+		generateGrad(document.getElementById('id_chat_log'));
 	}
 	
 	var paginationKhattam = ()=>{
 		setPageNumber("-1");
+	}
+
+	function escapeHTML (unsafe_str) {
+		return unsafe_str
+		  .replace(/&/g, '&amp;')
+		  .replace(/</g, '&lt;')
+		  .replace(/>/g, '&gt;')
+		  .replace(/\"/g, '&quot;')
+		  .replace(/\'/g, '&#39;')
+		  .replace(/\//g, '&#x2F;')
 	}
 	
 	function appendChatMessage(data,maintainPosition,isNewMessage){
@@ -69,7 +94,7 @@ function validateText(str)
 		temp_messages = await getMessagesById(msg_id);
 		if(temp_messages!=undefined){
 			encrypted_message_content = temp_messages['message_content'];
-		message_content = decrypt(encrypted_message_content,key);
+		message_content = decrypt(escapeHTML(encrypted_message_content),key);
 		user_id = temp_messages['user_id'];
 		sender_fname = data['first_name'];
 		sender_lname = data['last_name'];
@@ -110,7 +135,7 @@ function validateText(str)
 		var sender_profile_image_id = "sender_profile_image_"+msg_id;
 		profileImage.id = sender_profile_image_id;
 		//rewrite the content of the created element message,timestamp and name
-		new_message_content.innerHTML = validateText(message_content) ;
+		new_message_content.innerHTML = validateText(message_content);
 		message_timestamp_p.innerHTML = msg_timestamp
 		conversation_name_div.innerHTML = sender_fname +" "+ sender_lname
 		//check if the sender is the logged in user
@@ -140,14 +165,13 @@ function validateText(str)
 	}
 
 	function appendNewChatMessage(data,maintainPosition,isNewMessage){
-		console.log("instant msg appending");
 		msg_id= data['msg_id'];
 		user_id = data['user_id'];
 		encrypted_message_content = data['message_content']
 		key = document.getElementById('topbar_otheruser_name').dataset.val;
-		message_content = decrypt(encrypted_message_content,key)
-		console.log("encrypted msg",encrypted_message_content);
-		console.log("decrypted msg ",message_content);
+		message_content = decrypt(escapeHTML(encrypted_message_content),key);
+		// console.log("encrypted msg",encrypted_message_content);
+		// console.log("decrypted msg ",message_content);
 		sender_fname = data['first_name'];
 		sender_lname = data['last_name'];
 		msg_timestamp = data['natural_timestamp'];
@@ -186,7 +210,7 @@ function validateText(str)
 		var sender_profile_image_id = "sender_profile_image_"+msg_id;
 		profileImage.id = sender_profile_image_id;
 		//rewrite the content of the created element message,timestamp and name
-		new_message_content.innerHTML = validateText(message_content) ;
+		new_message_content.innerHTML = (validateText(message_content));
 		message_timestamp_p.innerHTML = msg_timestamp
 		conversation_name_div.innerHTML = sender_fname +" "+ sender_lname
 		//check if the sender is the logged in user
@@ -318,7 +342,7 @@ function update_thread_list_view(data){
 		
 								<div class="flex-1 overflow-hidden">
 									<h5 class="text-truncate text-white font-size-15 mb-1">${thread.group_name}</h5>
-									<p class="chat-user-message text-white text-truncate mb-0">${thread.latest_msg}</p>
+									<p class="chat-user-message text-white text-truncate mb-0">${escapeHTML(thread.latest_msg)}</p>
 								</div>
 								<div class="font-size-11">05 min</div>
 							</div>

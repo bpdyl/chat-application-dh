@@ -131,6 +131,8 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
 
             elif command == "private_chat":
                 message = content.get("message")
+                if len(message.lstrip()) == 0:
+                    raise ClientError(422,"You can't send an empty message.")
                 message_type = content['message_type']
                 sent_by_id = content['sent_by']
                 send_to_id = content['send_to']
@@ -211,7 +213,8 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
                         "command":command,
                         "user_id":self.me.id,
                         "username":self.me.username,
-                        "idb_message":content['idb_msg']
+                        "idb_message":content['idb_msg'],
+                        "pvt_id":self.private_thread.id,
                     }
                 )
 
@@ -259,7 +262,6 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
         })
 
     async def websocket_message(self,event):
-        print("instant message broadcast hudai")
         t = event['timestamp']
         timestamp = timestamp_encoder(t)
         await self.send_json(({
@@ -293,6 +295,7 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
                 'command': event['command'],
                 'user_id': event['user_id'],
                 'username':event['username'],
+                'pvt_id':event['pvt_id'],
             }
         ))    
     

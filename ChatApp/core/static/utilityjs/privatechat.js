@@ -18,7 +18,6 @@ shouldScroll = chat_section.scrollTop + chat_section.clientHeight === chat_secti
 
 var privateChatWebSocket = null;
 var friendId = null;
-console.log("this is loggeduser",logged_user)
 
 
 // var [first_thread_id,threadType] = getIDs();
@@ -37,7 +36,6 @@ console.log("this is loggeduser",logged_user)
 unsafe_authenticated = 'true' === document.currentScript.dataset.authenticated;
 
 function onSelectFriend(userId,ele){
-    console.log("onSelectFriend: " + userId)
     createOrReturnPrivateChat(userId)
     var nextURL = window.location.origin+'/chat/?t_id='+userId;
     var nextTitle = 'My new page title';
@@ -66,10 +64,9 @@ function closeWebSocket(){
 }
 
 function webSocketSetup(user_id,pvt_id){
-    console.log("web socket for "+user_id)
     friendId = user_id
     // closegroupWebSocket();
-
+    clearChat();
     setPageNumber("1");
     disableChatHistoryScroll();
     closeWebSocket();
@@ -84,30 +81,25 @@ function webSocketSetup(user_id,pvt_id){
     
 
     privateChatWebSocket.onmessage = function(e){
-        console.log("Websocket message aayo hai");
         const data = JSON.parse(e.data);
         console.log("data display",data)
 		displayChatroomLoadingSpinner(data.display_progress_bar)
 
         if(data.error){
-            console.log("error vako ho")
-            console.error(data.error + ": "+data.message)
             showClientErrorModal(data.message)
             return;
         }
 
         if(data.command == 'idb_broadcast'){
-            onIDBroadcast(data['idb_message'],pvt_id);
+            onIDBroadcast(data['idb_message'],data['pvt_id']);
             // setTimeout(idb_broadcastCallback,2000);
         }
 
         if (data.joining_room){
-            console.log("Joining room " + data.joining_room);
             thread_distinguish.innerHTML = data.thread_type
             var secret_key = document.getElementById('topbar_otheruser_name');
             // secret_key.setAttribute('id','secret_key_id');
             secret_key.dataset.val = data['my_keys']['final_shared_key'];
-            clearChat();
             showLoader();
             getUserInfo();
             showLoader();
@@ -131,8 +123,7 @@ function webSocketSetup(user_id,pvt_id){
             });
             (async() => {
             await addToDatabase(data);
-        })()
-            console.log(data);
+        })();
             let active_thread_id = document.getElementById('topbar_otheruser_name').dataset.pvt_thread_id;
             
             if(data.private_thread_id == active_thread_id){
@@ -156,7 +147,6 @@ function webSocketSetup(user_id,pvt_id){
     }
 
     privateChatWebSocket.addEventListener("open", function(e){
-        console.log("ChatSocket OPEN")
         // join chat room
         if(unsafe_authenticated){
             privateChatWebSocket.send(JSON.stringify({
@@ -176,16 +166,16 @@ function webSocketSetup(user_id,pvt_id){
         }
     })
     privateChatWebSocket.onopen = function(e){
-        console.log("i am connected")
+        console.log("connected",e)
     }
-    privateChatWebSocket.onclose = function(){
-        console.error("chat socket closed.")
+    privateChatWebSocket.onclose = function(e){
+        console.error("chat socket closed.",e)
     }
 
     if(privateChatWebSocket.readyState == WebSocket.OPEN){
-        console.log("Private chat socket open")
+        // console.log("Private chat socket open")
     }else if(privateChatWebSocket.readyState == WebSocket.CONNECTING){
-        console.log("Private chat socket connecting...")
+        // console.log("Private chat socket connecting...")
     }
 }
 const chat_message_send_btn = document.getElementById('chat_message_send_btn');
@@ -206,21 +196,21 @@ $('#chat_message_input').keypress(function(e){
 })
 
 chat_message_send_btn.onclick = function(e){
-    console.log("this is enter pressed with value")
         e.preventDefault();
         
         const chat_message = $('#chat_message_input').val().trim();
-         s_key = document.getElementById('topbar_otheruser_name').dataset.val;
+        let s_key = document.getElementById('topbar_otheruser_name').dataset.val;
 
         // alert(encryptedMsg);
         let send_to = document.getElementById('topbar_otheruser_name').dataset.other_user_id
         if(chat_message == ''){
-            console.log("empty message");
             return;
         }
 
         if(thread_distinguish.innerHTML == 'private_thread'){
-        const encryptedMsg = encrypt(chat_message,s_key);
+            // let test_msg = escapeHTML(chat_message);
+            // console.log("escaped html message",test_msg);
+        const encryptedMsg = encrypt(escapeHTML(chat_message),s_key);
 
         if(privateChatWebSocket!=null){
             if(privateChatWebSocket.readyState == WebSocket.OPEN){
@@ -277,14 +267,21 @@ function getPrivateThreadMessages(firstAttempt=false){
 }
 
 
-
 function onIDBroadcast(msg_info,t_id){
-    console.log("on idb broadcast")
+    console.log("onidb broadcast tid",t_id)
     let msgdata = getMessagesByThread(t_id);
     msgdata.then(elem=>{
         if(elem.length>0){
-
-            console.log("found existing message",elem);
+            // if(JSON.stringify(msg_info)!=JSON.stringify(elem)){
+            if(!_.isEqual(msg_info,elem)){
+                console.log("found existing message but not same",elem);
+                msg_info.forEach(async msg=>{
+                    await addToDatabase(msg);
+                })  
+            }else{
+                console.log("found existing same message.");
+            }
+            
         }else{
             console.log("no messages found so inserting");
             msg_info.forEach(async msg=>{
@@ -331,9 +328,6 @@ function onReceivingUserInfo(user_info,pvt_thread_id){
 
 
 var onReceivingMessagesResponse = (messages,new_page_number,firstAttempt)=>{
-
-    console.log("yo messages checking",messages)
-
     if(messages!= null && messages != 'undefined' && messages!="None"){
         setPageNumber(new_page_number);
         messages.forEach(element => {
@@ -345,7 +339,6 @@ var onReceivingMessagesResponse = (messages,new_page_number,firstAttempt)=>{
         }
         
     }else{
-        console.log("khattam no messages");
         paginationKhattam();
     }
 }
@@ -358,7 +351,6 @@ function chatHistoryScroll(e){
         if(thread_distinguish.innerHTML == 'private_thread'){
         getPrivateThreadMessages(false);
         }else if(thread_distinguish.innerHTML == 'group_thread'){
-            console.log("get group thread messages call hunu parne");
             getGroupThreadMessages(false);
         }
     }
@@ -385,8 +377,8 @@ function createOrReturnPrivateChat(id){
         },
         timeout: 5000,
         success: (data)=>{
-            console.log("SUCCESS chat",data);
             if(data['response'] == "Successfully got the chat."){
+                console.log(data,"create or reuturn private chat and id",id)
                 webSocketSetup(id,data['private_thread_id']);
             }
             else if(data['response']!=null){

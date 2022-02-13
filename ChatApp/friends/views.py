@@ -189,7 +189,6 @@ def cancel_request(request):
     data = {}
     if request.is_ajax() and request.method=="POST":
         user_id = request.POST.get("receiver_user_id")
-        print("cancel request" + str(user_id))
         if user_id:
             receiver = CustomUser.objects.get(pk = user_id)
             thread_obj = FriendRequestThread.objects.get_or_create_personal_thread(current_user,receiver)
@@ -219,7 +218,6 @@ def accept_request(request, *args, **kwargs):
     current_user = request.user
     data = {}
     if request.is_ajax():
-        print("Request accept garne technique")
         friend_request_id = kwargs.get("friend_request_id")
         if friend_request_id:
             try:
@@ -290,12 +288,10 @@ def decline_request(request, *args, **kwargs):
         return HttpResponse("In case koi batho huna khojyo vane ...All the best dude")
     friendrequest_view_method = 'friend_request_operations'
     btn_room_group_name = "friend_request_"+room_name_postfix
-    print(btn_room_group_name)
     ui_update_room_name = "ui_update_"+str(thread_obj.id)
     ui_update_method = 'my_request_ui_update'
     perform_broadcast(data,ui_update_room_name,ui_update_method)
     perform_broadcast(data,btn_room_group_name,friendrequest_view_method)
-    print("yaa ni aauchu hai ma aauna chai")
     return JsonResponse(data)
 
 
@@ -344,9 +340,6 @@ def remove_friend(request, *args,**kwargs):
         ui_update_method = 'my_request_ui_update'
         perform_broadcast(data,btn_room_group_name,friendrequest_view_method)
         perform_broadcast(data,ui_update_room_name,ui_update_method)
-        print("ma yaa pani aako chu hai")
-        
-        print("yo pani successful")
         return JsonResponse(data)
     else:
         return HttpResponse("In case koi batho huna khojyo vane ...All the best dude")

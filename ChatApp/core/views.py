@@ -1,4 +1,8 @@
 
+from cmath import log
+from os import remove
+from tkinter.messagebox import RETRY
+from tokenize import group
 from django.contrib import auth
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
@@ -385,10 +389,55 @@ def add_members_to_chat(request,*args,**kwargs):
 
 
 @login_required
+def remove_group_member(request,*args,**kwargs):
+    print("i was called")
+    if request.method =="POST" and request.is_ajax():    
+        removee_id = int(request.POST.get("removee_id"))
+        current_user = request.user
+        group_id = int(request.POST.get("thread_id"))
+        gc_thread = GroupChatThread.objects.get(pk = group_id)
+        admin_id = gc_thread.admin.id
+        print("admin id",admin_id)
+        if current_user.id == admin_id:
+            print("can remove")
+            removee = CustomUser.objects.get(id = removee_id)
+            if removee in gc_thread.user_set.all():
+                print("present in group",removee)
+            else:
+                return JsonResponse({"response":"No such member present in group"})
+            return JsonResponse({"response":"can remove"})
+        else:
+            print("Invalid action")
+            return JsonResponse({"response":"Invalid action"})
+
+@login_required
+def leave_group(request,*args,**kwargs):
+    if request.method =="POST" and request.is_ajax():    
+        current_user = request.user
+        group_id = int(request.POST.get("thread_id"))
+        gc_thread = GroupChatThread.objects.get(pk = group_id)
+        gc_admin = gc_thread.admin
+        ordered_group_members = gc_thread.user_set.all().order_by('date_joined')
+        group_members = gc_thread.user_set.all()
+        print("ordered group_members",ordered_group_members)
+        if current_user in group_members:
+            # group_members.remove(current_user)
+            if current_user == gc_admin:
+                new_admin = group_members[1]
+                print("new admin",new_admin)
+                return JsonResponse({"new admin":[new_admin.username,"group left"]})
+            return JsonResponse({"response":"group left"})
+        else:
+            return JsonResponse({"response":"Invalid action"})
+    else:
+        return JsonResponse({"response":"Invalid action"})
+
+
+
+@login_required
 def gsk(request,*args,**kwargs):
     if request.method=="POST" and request.is_ajax():
         data = {}
-        print("POST Data",request.POST)
         user_ids = request.POST.getlist('users_id[]')
         ks = []
         for id in user_ids:
