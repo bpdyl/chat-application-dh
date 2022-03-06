@@ -21,5 +21,4 @@ urlpatterns = [
     path('leave_group/',views.leave_group,name='leave-group'),
     path('generate_keys/',views.generate_keys,name='generate-keys'),
     path('gsk/',views.gsk,name='generate-shared-keys'),
-
 ]

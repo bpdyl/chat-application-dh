@@ -31,6 +31,29 @@ function closegroupWebSocket(){
         disableChatHistoryScroll();
     }
 }
+let current_user =JSON.parse(document.getElementById('logged_in_user').textContent);
+
+var updateWs = new WebSocket(
+    'ws://'
+    + window.location.host
+    + '/ws/tu/'
+    + current_user.id
+    + '/'
+)
+
+updateWs.onmessage = function(e){
+    var data = JSON.parse(e.data);
+    update_thread_list_view(data.thread_details);
+    gk();
+}
+
+$('#test_thread').on('click',function(){
+    fetch('http://localhost:8000/chat/test_thread')
+    .then(response => response.json())
+    .then(data =>{
+                console.log(data)
+    })
+})
 
 function groupChatWebSocketSetup(thread_id){
     groupThreadId = thread_id
@@ -102,6 +125,9 @@ function groupChatWebSocketSetup(thread_id){
         if(data.messages_response){
             onReceivingGroupMessagesResponse(data.messages_metadata,data.new_page_number,data.firstAttempt);
         }
+        // if(data.command == 'is_typing'){
+        //     displayTyping(data.grp_display_typing)
+        // }
     }
 
     groupChatWebSocket.addEventListener("open", function(e){
@@ -126,6 +152,8 @@ function groupChatWebSocketSetup(thread_id){
         console.log("Group chat socket connecting...")
     }
 }
+
+
 
 function groupChatSend(chat_message){
     groupChatWebSocket.send(
@@ -436,17 +464,25 @@ function group_members_display(members,admin_id,admin_username,group_thread_id){
                         <div class="dropdown-menu dropdown-menu-end">
                             <a class="dropdown-item direct_message ${is_self?"d-none":"block"}" onclick='onSelectFriend(${member.id})' href="#">Message</a>
                             <a class="dropdown-item" href="${window.location.origin+'/account/profile/'+member.id}">View Profile</a>
-                            <a class="dropdown-item remove-member" data-removee=${member.id} style="display:${can_kick?"block":"none"}" href="#">Kick</a>
-                            <a class="dropdown-item leave-group" style="display:${is_self?"block":"none"}" href="#">Leave Group</a>
+                            `
+                            // <a class="dropdown-item remove-member" data-removee=${member.id} style="display:${can_kick?"block":"none"}" href="#">Kick</a>
+                            +`<a class="dropdown-item remove-member" data-removee=${member.id} href="#">Kick</a>
+                            <a class="dropdown-item leave-group"  data-is = ${is_self} href="#">Leave Group</a>
                         </div>
                     </li>
                 </ul>
             </div>
         </div>
     </div>`
-
-    });
+    d_k();
+    function d_k(){
+        if(can_kick == false){
+            document.querySelector('.remove-member').remove();
+        }
+    }
     groupActions_event_listener(group_thread_id);
+    });
+
 
 
 }
@@ -460,8 +496,10 @@ function groupActions_event_listener(gt_id) {
         }, false);
     });
     [].map.call(leaveContainer, function(elem) {
+        if(elem.dataset.is == 'false'){
+            elem.remove();
+        }
         elem.addEventListener("click",function(){
-            let leaver_id = this.dataset.leaver
         leaveGroup(gt_id);
         }, false);
     });
@@ -513,21 +551,6 @@ function leaveGroup(gt_id){
 }
 
 var submitbutton = $('#chat_name_change_submit');
-// var orig = [];
-// $.fn.getType = function () {
-//     return this[0].tagName == "INPUT" ? $(this[0]).attr("type").toLowerCase() : this[0].tagName.toLowerCase();
-// }
-
-// $("#chat_name_change_form :input").each(function () {
-//     var type = $(this).getType();
-//     var tmp = {
-//         'type': type,
-//         'value': $(this).val()
-//     };
-//     orig[$(this).attr('id')] = tmp;
-// });
-
-
 $('#gc_name_change_modal').on('hidden.bs.modal', function () {
     $(this).find('form').trigger('reset');
 })

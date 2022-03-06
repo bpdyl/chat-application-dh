@@ -1,8 +1,5 @@
 
-from cmath import log
-from os import remove
-from tkinter.messagebox import RETRY
-from tokenize import group
+from multiprocessing.dummy import current_process
 from django.contrib import auth
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
@@ -29,6 +26,8 @@ from operator import attrgetter
 from .consumers import generate_shared_keys
 from ChatApp import settings,broadcast
 import pytz
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 import json
 
 
@@ -208,8 +207,6 @@ def add_member_search(request,*args, **kwargs):
         search_query = request.POST.get('search_query')
         thread_id = request.POST.get('thread_id')
         print("checking thread id",thread_id)
-        
-
         if not search_query:
             print("Empty inserted")
             result = "No user found ..."
@@ -269,8 +266,13 @@ def get_group_members(group_id=None, group_obj=None, user=None):
 
 class ThreadViewSet(viewsets.ViewSet):
     def list(self,request):
-        current_user = request.user
-        group_ids = request.user.groups.values_list('id')
+        print("api got hit")
+        param = request.GET.get('u_id')
+        if param:
+            current_user = CustomUser.objects.get(id = param)
+        else:
+            current_user = request.user
+        group_ids = current_user.groups.values_list('id')
         assigned_groups = GroupChatThread.objects.filter(id__in = group_ids)
         pvt_threads1 = PrivateChatThread.objects.filter(first_user = current_user,is_active = True)
         pvt_threads2 = PrivateChatThread.objects.filter(second_user = current_user, is_active = True)
@@ -302,12 +304,12 @@ def create_group_chat(request,*args,**kwargs):
         members_list_id = form.data.get('members_list')
         members_list_id = members_list_id.split(',')
         members_list_id.append(current_user.id)
-        users = CustomUser.objects.filter(id__in = members_list_id)
+        try:
+            users = CustomUser.objects.filter(id__in = members_list_id)
+        except:
+            return JsonResponse({"response":"Something went wrong. Please try again"})
         last_group = GroupChatThread.objects.all().last()
         g = Group.objects.all().last()
-        print("thread id and group id",last_group.id,g.id)
-        print("last wala group",last_group)
-        print("vako users",users)
         if form.is_valid():
             group_name = form.cleaned_data.get('group_name')
             gc_thread = form.save(commit=False)
@@ -321,15 +323,57 @@ def create_group_chat(request,*args,**kwargs):
             print("naya thread ko id",gc_thread.id)
             this_group = Group.objects.get(id = gc_thread.id)
             gc_thread.add_members(this_group,users)
-            # for u in users:
-            #     this_group.user_set.add(u)
-            
             data['status'] = 'Created'
-            # broadcast.perform_broadcast(data,room_group_name,consumer_method_name)
+            #threadlist_update_
+            #thread_update
+            consumer_method_name = 'thread_update'
+            channel_layer = get_channel_layer()
+            for id in members_list_id:
+                print("id of members",id)
+                room_group_name = f'threadlist_update_{id}'
+                data['thread_details'] = thread_details(id)
+                print(room_group_name)
+                async_to_sync(channel_layer.group_send)(
+                    room_group_name,
+                    {
+                        "type":consumer_method_name,
+                        "content":data['thread_details'],
+                    }
+                )
             return JsonResponse(data)
         return JsonResponse("testing",safe=False)
-        
+    else:
+        return HttpResponse("Not allowed")
 
+# def test_thread(request):
+#     current_user = request.user
+#     d = thread_details(current_user.id)
+#     consumer_method_name = 'thread_update'
+#     room_group_name = f'threadlist_update_{current_user.id}'
+#     async_to_sync(channel_layer.group_send)(
+#         room_group_name,
+#         {
+#             "type":consumer_method_name,
+#             "content":d,
+#         }
+#     )
+#     # broadcast.perform_broadcast(d,room_group_name,consumer_method_name)
+#     return JsonResponse({"status":"test_thread"})
+
+def thread_details(u_id):
+    current_user = CustomUser.objects.get(id = u_id)
+    group_ids = current_user.groups.values_list('id')
+    assigned_groups = GroupChatThread.objects.filter(id__in = group_ids)
+    pvt_threads1 = PrivateChatThread.objects.filter(first_user = current_user,is_active = True)
+    pvt_threads2 = PrivateChatThread.objects.filter(second_user = current_user, is_active = True)
+    combined_threads = list(chain(pvt_threads1,pvt_threads2))
+    private_serializer = PrivateChatThreadSerializer(combined_threads,many = True)
+    group_serializer = GroupChatThreadSerializer(assigned_groups,many = True)
+    response = private_serializer.data + group_serializer.data
+    my_threads_dict = {}
+    threads = sorted(response,key=lambda x: x['updated_at'],reverse=True)
+    my_threads_dict['chat_threads'] = threads
+    return my_threads_dict
 
 @login_required
 def update_group_chat_name(request,*args,**kwargs):
@@ -378,7 +422,10 @@ def add_members_to_chat(request,*args,**kwargs):
         thread_id = request.POST.get("thread_id")
         members_list_id = request.POST.get('members_list')
         members_list_id = members_list_id.split(',')
-        users = CustomUser.objects.filter(id__in = members_list_id)
+        try:
+            users = CustomUser.objects.filter(id__in = members_list_id)
+        except CustomUser.DoesNotExist:
+            return JsonResponse({"response":"No such user exist."})
         gc_thread = GroupChatThread.objects.get(pk = thread_id)
         this_group = Group.objects.get(id = gc_thread.id)
         gc_thread.add_members(this_group,users)
@@ -390,7 +437,6 @@ def add_members_to_chat(request,*args,**kwargs):
 
 @login_required
 def remove_group_member(request,*args,**kwargs):
-    print("i was called")
     if request.method =="POST" and request.is_ajax():    
         removee_id = int(request.POST.get("removee_id"))
         current_user = request.user
@@ -399,13 +445,12 @@ def remove_group_member(request,*args,**kwargs):
         admin_id = gc_thread.admin.id
         print("admin id",admin_id)
         if current_user.id == admin_id:
-            print("can remove")
             removee = CustomUser.objects.get(id = removee_id)
-            if removee in gc_thread.user_set.all():
+            if removee in gc_thread.user_set.all().exclude(id = current_user.id):
                 print("present in group",removee)
+                return JsonResponse({"response":"can remove"})
             else:
-                return JsonResponse({"response":"No such member present in group"})
-            return JsonResponse({"response":"can remove"})
+                return JsonResponse({"response":"Invalid action"})
         else:
             print("Invalid action")
             return JsonResponse({"response":"Invalid action"})

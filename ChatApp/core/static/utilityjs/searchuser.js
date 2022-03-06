@@ -280,6 +280,13 @@ group_creation_form.addEventListener('submit',event=>{
             newgcmemberResultBox.innerHTML = '';
             contacts_preview.innerHTML = '';
             group_creation_form.reset();
+            // fetch('http://localhost:8000/chat/chat_thread_list')
+            // .then(response => response.json())
+            // .then(data =>{
+            //     console.log(data)
+            //     update_thread_list_view(data)
+            // });
+            
         },
         error: function(error){
             console.log(error);

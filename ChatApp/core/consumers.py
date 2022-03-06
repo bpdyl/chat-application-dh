@@ -239,13 +239,23 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
                     raise ClientError(204,"Something went wrong while trying to fetch your contact's information.")
                 await self.display_progress_bar(False)
             if command == "is_typing":
+                sent_by_id = content['sent_by']
+                send_to_id = content['send_to']
+                sent_by_user = await self.get_user_object(sent_by_id)
+                send_to_user = await self.get_user_object(send_to_id)
+                if not sent_by_user:
+                    print("Error:: sent by user is incorrect")
+                if not send_to_user:
+                    print("Error:: send to user is incorrect")
+                other_user_chat_room = f'private_thread_{send_to_id}'
                 await self.channel_layer.group_send(
                     self.room_name,
                     {
                         "type": "websocket_typing",
-                        "text": content['text'],
+                        "text": f'{self.me.first_name} is typing',
                         "command": command,
-                        "user": content['user']
+                        "sent_by": sent_by_id,
+                        "send_to": send_to_id,
                     }
                 )
         except ClientError as e:
@@ -283,9 +293,11 @@ class PrivateChatConsumer(AsyncJsonWebsocketConsumer):
     async def websocket_typing(self, event):
         await self.send_json((
             {
-                'text': event['idb_message'],
+                'text': event['text'],
                 'command': event['command'],
-                'user': event['user'],
+                'send_to': event['send_to'],
+                'sent_by': event['sent_by'],
+                'display_typing': True,
             }
         ))
     async def websocket_idbBroadcast(self, event):
@@ -552,12 +564,12 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
                 await self.display_progress_bar(False)
             if command == "is_typing":
                 await self.channel_layer.group_send(
-                    self.room_name,
+                    self.room_group_name,
                     {
                         "type": "websocket_typing",
-                        "text": content['text'],
+                        "text": f'{self.me.first_name} is typing',
                         "command": command,
-                        "user": content['user']
+                        "user": self.me.first_name,
                     }
                 )
         except ClientError as e:
@@ -598,6 +610,7 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
                 'text': event['text'],
                 'command': event['command'],
                 'user': event['user'],
+                'grp_display_typing' : True,
             }
         ))
     
@@ -705,6 +718,13 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
                 "display_progress_bar":is_displayed,
             }
         )
+    # async def display_is_typing(self,is_displayed):
+    #     await self.send_json(
+    #         {
+    #             "display_is_typing":is_displayed,
+
+    #         }
+    #     )
 
     async def handle_client_error(self,e):
         errorData = {}
@@ -771,3 +791,34 @@ def get_group_thread_messages_data(thread,page_number):
     except Exception as e:
         print("SOMETHING WENT WRONG",e)
     return None
+
+
+
+class ThreadListUpdateConsumer(AsyncJsonWebsocketConsumer):
+    async def connect(self):
+        print("thread update connect: " +str(self.scope['user']))
+        self.me = self.scope.get('user')
+        await self.accept()
+        self.room_id = self.scope['url_route']['kwargs']['uid']
+        self.room_group_name = f'threadlist_update_{self.room_id}'
+        print("threadlist update is ",self.room_group_name)
+
+        await self.channel_layer.group_add(
+                self.room_group_name,
+                self.channel_name
+            )
+    
+    async def thread_update(self,event):
+        content = event['content']
+        print("its me thread event",content)
+        await self.send_json({
+            "thread_details":content,
+        })
+
+    async def disconnect(self, close_code):
+        me = self.scope['user']
+        if self.room_group_name and self.channel_name:
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name,
+            )

@@ -97,9 +97,7 @@ function webSocketSetup(user_id,pvt_id){
 
         if (data.joining_room){
             thread_distinguish.innerHTML = data.thread_type
-            var secret_key = document.getElementById('topbar_otheruser_name');
-            // secret_key.setAttribute('id','secret_key_id');
-            secret_key.dataset.val = data['my_keys']['final_shared_key'];
+            test_skey= data['my_keys']['final_shared_key'];
             showLoader();
             getUserInfo();
             showLoader();
@@ -127,7 +125,7 @@ function webSocketSetup(user_id,pvt_id){
             let active_thread_id = document.getElementById('topbar_otheruser_name').dataset.pvt_thread_id;
             
             if(data.private_thread_id == active_thread_id){
-            appendNewChatMessage(data,false,true);
+            appendNewChatMessage(data,false,true,test_skey);
             }
         window.scrollTo(0,chat_section.scrollHeight)
 
@@ -143,6 +141,9 @@ function webSocketSetup(user_id,pvt_id){
         }
         if(data.messages_response){
             onReceivingMessagesResponse(data.messages_metadata,data.new_page_number,data.firstAttempt);
+        }
+        if(data.command == 'is_typing'){
+            displayTyping(data.display_typing)
         }
     }
 
@@ -181,6 +182,7 @@ function webSocketSetup(user_id,pvt_id){
 const chat_message_send_btn = document.getElementById('chat_message_send_btn');
 
 $('#chat_message_input').keypress(function(e){
+    send_typing_command();
     if(e.which===13 && e.shiftKey){
         //shift and enter pressed go to next line
     }else if(e.which === 13 && !$('#chat_message_input').val().trim()){
@@ -208,9 +210,7 @@ chat_message_send_btn.onclick = function(e){
         }
 
         if(thread_distinguish.innerHTML == 'private_thread'){
-            // let test_msg = escapeHTML(chat_message);
-            // console.log("escaped html message",test_msg);
-        const encryptedMsg = encrypt(escapeHTML(chat_message),s_key);
+        const encryptedMsg = encrypt(escapeHTML(chat_message),test_skey);
 
         if(privateChatWebSocket!=null){
             if(privateChatWebSocket.readyState == WebSocket.OPEN){
@@ -235,6 +235,32 @@ chat_message_send_btn.onclick = function(e){
         chat_message_input.value = '';
 }
 
+function send_typing_command(){
+    if(thread_distinguish.innerHTML == 'private_thread'){
+        let send_to = document.getElementById('topbar_otheruser_name').dataset.other_user_id
+    if(privateChatWebSocket!=null){
+        if(privateChatWebSocket.readyState == WebSocket.OPEN){
+        privateChatWebSocket.send(
+            JSON.stringify({
+                "command": "is_typing",
+                "send_to":send_to,
+                "sent_by":logged_user['id'],
+            })
+        );
+        }
+    }
+}else if(thread_distinguish.innerHTML == 'group_thread'){
+        if(groupChatWebSocket!=null){
+        if(groupChatWebSocket.readyState == WebSocket.OPEN){
+            groupChatWebSocket.send(
+                JSON.stringify({
+                    "command": "is_typing",
+                })
+            )
+        }
+}
+}
+}
 
 // function idb_broadcastCallback(){
 //     showLoader();
@@ -331,7 +357,7 @@ var onReceivingMessagesResponse = (messages,new_page_number,firstAttempt)=>{
     if(messages!= null && messages != 'undefined' && messages!="None"){
         setPageNumber(new_page_number);
         messages.forEach(element => {
-            appendChatMessage(element, true,false);
+            appendChatMessage(element, true,test_skey);
             
         });
         if(firstAttempt){

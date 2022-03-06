@@ -84,7 +84,7 @@ function validateText(str)
 		  .replace(/\//g, '&#x2F;')
 	}
 	
-	function appendChatMessage(data,maintainPosition,isNewMessage){
+	function appendChatMessage(data,maintainPosition,test_skey){
 		key = document.getElementById('topbar_otheruser_name').dataset.val;
 		msg_id= data['msg_id'];
 		(async() => {
@@ -94,7 +94,7 @@ function validateText(str)
 		temp_messages = await getMessagesById(msg_id);
 		if(temp_messages!=undefined){
 			encrypted_message_content = temp_messages['message_content'];
-		message_content = decrypt(escapeHTML(encrypted_message_content),key);
+		message_content = decrypt(escapeHTML(encrypted_message_content),test_skey);
 		user_id = temp_messages['user_id'];
 		sender_fname = data['first_name'];
 		sender_lname = data['last_name'];
@@ -164,12 +164,11 @@ function validateText(str)
 
 	}
 
-	function appendNewChatMessage(data,maintainPosition,isNewMessage){
+	function appendNewChatMessage(data,maintainPosition,isNewMessage,test_skey){
 		msg_id= data['msg_id'];
 		user_id = data['user_id'];
 		encrypted_message_content = data['message_content']
-		key = document.getElementById('topbar_otheruser_name').dataset.val;
-		message_content = decrypt(escapeHTML(encrypted_message_content),key);
+		message_content = decrypt(escapeHTML(encrypted_message_content),test_skey);
 		// console.log("encrypted msg",encrypted_message_content);
 		// console.log("decrypted msg ",message_content);
 		sender_fname = data['first_name'];
@@ -262,6 +261,18 @@ function validateText(str)
 			loader.classList.remove('show');
 		}
 	}
+	// $('#is_typing').hide();
+
+	// function displayTyping(typing){
+	// 	console.log("typing value",typing)
+	// 	if(typing){
+	// 		console.log("show typing")
+	// 		$('#is_typing').show();
+	// 		displayTyping(false)
+	// 	}else{
+	// 		$('#is_typing').hide();
+	// 	}
+	// }
 
 	var enableChatHistoryScroll = ()=>{
 		$('#id_chat_log').on('scroll',chatHistoryScroll);
@@ -352,6 +363,20 @@ function update_thread_list_view(data){
 	}
 	})
 }
+
+// $('#test_api').on('click',function(){
+// 	$.ajax({
+// 		type:"GET",
+// 		url: window.location.origin+'/chat/test_api/',
+// 		success: (data)=>{
+// 			console.log("chat threads list",data)
+// 		},
+// 		error:(error_data)=>{
+// 			console.log(error_data);
+// 		},
+
+// 	})
+// })
 
 function gk(){
 	var shk =JSON.parse(document.getElementById('keys').textContent);
