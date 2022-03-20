@@ -142,9 +142,9 @@ function webSocketSetup(user_id,pvt_id){
         if(data.messages_response){
             onReceivingMessagesResponse(data.messages_metadata,data.new_page_number,data.firstAttempt);
         }
-        if(data.command == 'is_typing'){
-            displayTyping(data.display_typing)
-        }
+        // if(data.command == 'is_typing'){
+        //     displayTyping(data.display_typing)
+        // }
     }
 
     privateChatWebSocket.addEventListener("open", function(e){

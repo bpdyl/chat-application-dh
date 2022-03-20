@@ -123,6 +123,15 @@ class GroupChatMessageManager(models.Manager):
         qs = GroupChatMessage.objects.filter(gc_thread=gc_thread).order_by("-timestamp")
         return qs
 
+class GroupJoinedDate(models.Model):
+    gc = models.ForeignKey(GroupChatThread,on_delete=models.CASCADE,related_name='gc_joined')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name='grp_joined_user')
+    joined_date = models.DateTimeField(auto_now_add=True,auto_now=False)
+    updated_joined_date = models.DateTimeField(auto_now=True) 
+
+    def __str__(self):
+        return f'{self.user.username} joined {self.gc.group_name} on {self.joined_date} / {self.updated_joined_date}'
+
 class GroupChatMessage(models.Model):
     gc_thread = models.ForeignKey(GroupChatThread,on_delete=models.CASCADE,related_name='gc_message')
     sender = models.ForeignKey(settings.AUTH_USER_MODEL,on_delete=models.CASCADE,related_name='grp_sender')

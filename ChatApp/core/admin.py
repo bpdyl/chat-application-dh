@@ -27,7 +27,8 @@ class KeysAdmin(admin.ModelAdmin):
 admin.site.register(GroupChatThread,GroupChatThreadAdmin)
 admin.site.register(PrivateChatThread,PrivateChatThreadAdmin)
 admin.site.register(GroupChatMessage)
-admin.site.register(Keys,KeysAdmin)
+admin.site.register(GroupJoinedDate)
+# admin.site.register(Keys,KeysAdmin)
 admin.site.register(PrivateChatMessage,PrivateChatMessageAdmin)
 
 

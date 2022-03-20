@@ -760,6 +760,7 @@
         <script src="https://unpkg.com/localbase/dist/localbase.dev.js"></script>
         <script src="{% static 'utilityjs/lodash.min.js' %}"></script>
         <script src="{% static 'utilityjs/db.js' %}"></script>
+        <script src="{% static 'assets/js/sweetalert2.all.min.js' %}"></script>
         <script src="{% static 'utilityjs/base.js' %}"></script>
         <script async="async" defer="defer" src="{% static 'utilityjs/groupchat.js' %}" 
         {% if user.is_authenticated %} data-authenticated="true" {% endif %}></script>
@@ -801,7 +802,9 @@
                                     document.getElementById("id_friend_list_{{thread.first_user.id}}").parentElement.classList.remove('active');
                                 '{% endif %}'
                             '{% else %}'
-                                document.getElementById("id_friend_list_{{thread.id}}").parentElement.classList.remove('active');
+                            if(document.getElementById("id_friend_list_{{thread.id}}")!=null){
+                              document.getElementById("id_friend_list_{{thread.id}}").parentElement.classList.remove('active');
+                            }
                             '{% endif %}'
                         '{% endfor %}'
                 '{% endif %}'

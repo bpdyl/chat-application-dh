@@ -41,10 +41,26 @@ var updateWs = new WebSocket(
     + '/'
 )
 
+// var indivWs = new WebSocket(
+//     'ws://'
+//     + window.location.host
+//     + '/ws/a_&_i/'
+//     + current_user.id
+//     + '/'
+// ) 
+
 updateWs.onmessage = function(e){
     var data = JSON.parse(e.data);
-    update_thread_list_view(data.thread_details);
-    gk();
+    if(data.thread_details){
+        console.log("update ws ko thread details cha")
+        update_thread_list_view(data.thread_details);
+        gk();
+    }
+    if(data.user_action){
+        closegroupWebSocket();
+        clearOnLeave();
+    }
+
 }
 
 $('#test_thread').on('click',function(){
@@ -98,7 +114,51 @@ function groupChatWebSocketSetup(thread_id){
 
 
         if(data.command =='group_chat'){
-        if(data.msg_type == 0 || data.msg_type == 1 || data.msg_type == 2 || data.msg_type ==3 || data.msg_type == 4){
+        if(data.msgTypeList && data.msgTypeList.includes(data.msg_type)){
+                if(data.action && data.actionList.includes(data.action)){
+                    let members_info = data['members_info']
+                    if(data.removee){
+                        if(data.removee.username === logged_user['username']){
+                            Toast.fire({
+                                icon: 'warning',
+                                title: 'You have been removed from the group'
+                            })
+                        closegroupWebSocket();
+                        clearOnLeave();
+                        }else{
+                            Toast.fire({
+                                icon: 'warning',
+                                title: `${members_info['admin_username']} has removed ${data.removee.first_name} from the group.`
+                            })
+                        }
+                    }
+                    if(data.added_members){
+                        data.added_members.forEach(member => {
+                            if(member.username === logged_user['username']){
+                                Toast.fire({
+                                    icon: 'success',
+                                    title: `You have been added to the group ${members_info.group_name}.`
+                                })
+                            }
+                            else{
+                                Toast.fire({
+                                    icon: 'success',
+                                    title: `${members_info.admin_username} has added ${member.first_name} in the group.`
+                                })
+                            }
+                            
+                        });
+                    }
+                    if(data.left_user){
+                        Toast.fire({
+                            icon: 'warning',
+                            title: `${data.left_user.first_name} ${data.left_user.last_name} has left the group.`
+                        })
+                    }
+                    group_members_display(members_info['members'],members_info['admin_id'],members_info['admin_username'],members_info['thread_id']);
+                }
+            
+            console.log("hey there")
             $.ajax({
                 type: "GET",
                 url: window.location.origin+'/chat/chat_thread_list/',
@@ -113,6 +173,7 @@ function groupChatWebSocketSetup(thread_id){
             appendGroupChatMessage(data,false,true);
             }
         }
+
     }
 
         if(data.group_chat_info){
@@ -185,6 +246,28 @@ function getGroupChatInfo(){
     groupChatWebSocket.send(JSON.stringify({
         'command': 'get_group_chat_info',
     }))
+}
+
+
+function clearOnLeave(){
+    document.getElementById('id_other_username').textContent = ''
+    document.getElementById('topbar_otheruser_name').textContent = '';
+    document.getElementById('topbar_otheruser_name').href ='#';
+    document.getElementById('topbar_otheruser_name').removeAttribute('data-other_user_id');
+    document.getElementById('topbar_otheruser_name').removeAttribute('data-pvt_thread_id');
+    document.getElementById('topbar_otheruser_name').dataset.group_thread_id = '';
+
+    document.getElementById('other_user_info').href ='#';
+    document.getElementById('other_user_profile_image').classList.remove("d-none");
+    document.getElementById('sidebar_simplebar_about').innerHTML = "Customize Chat";
+    document.getElementById('aboutprofile').innerHTML = ``
+    document.getElementById('change_group_name').setAttribute("value",'');
+    document.getElementById('change_group_name').setAttribute("data-threadid",'');
+    $('#group_members').html('');
+    $('#group_members_wrapper').addClass('d-none');
+    let image = '/media/user_photos/nouser.jpg'
+    preloadImage(image, 'other_user_profile_image')
+    preloadImage(image,'topbar_otheruser_image')
 }
 
 
@@ -420,6 +503,7 @@ function group_members_display(members,admin_id,admin_username,group_thread_id){
     var member_type;
     var is_self;
     var can_kick;
+    if(members){
     members.forEach(member => {
         if(member.id == admin_id && member.username ==admin_username){
             member_type = 'Admin';
@@ -482,8 +566,7 @@ function group_members_display(members,admin_id,admin_username,group_thread_id){
     }
     groupActions_event_listener(group_thread_id);
     });
-
-
+}
 
 }
 function groupActions_event_listener(gt_id) {
@@ -548,6 +631,11 @@ function leaveGroup(gt_id){
         contentType: false,
         processData: false,
     });
+    groupChatWebSocket.send(JSON.stringify(
+        {
+            'command':'leave_group_chat',
+        }
+    ));
 }
 
 var submitbutton = $('#chat_name_change_submit');

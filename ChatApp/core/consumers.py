@@ -10,9 +10,11 @@ import asyncio
 from accounts.utils import LazyCustomUserEncoder
 from accounts.models import CustomUser
 from core.exceptions import ClientError
-from .utils import CHAT_NAME_CHANGED, CHAT_PHOTO_CHANGED, DEFAULT_PAGE_SIZE, MSG_TYPE_ADDED, MSG_TYPE_NORMAL, MSG_TYPE_REMOVED, LazyGroupThreadMessageEncodeer, timestamp_encoder,LazyPrivateThreadMessageEncodeer
+from .utils import (CHAT_NAME_CHANGED, CHAT_PHOTO_CHANGED, DEFAULT_PAGE_SIZE, MSG_TYPE_ADDED, MSG_TYPE_NORMAL, MSG_TYPE_REMOVED, 
+                    LazyGroupThreadMessageEncodeer, timestamp_encoder,LazyPrivateThreadMessageEncodeer, MEMBERS_ACTION)
 from django.core.paginator import Paginator
 from .DoubleDiffie import DiffieHellman
+from channels.layers import get_channel_layer
 
 from .models import (
     Keys, PrivateChatThread,PrivateChatMessage,GroupChatThread,GroupChatMessage
@@ -463,9 +465,12 @@ def update_user_decr(user):
 
 
 class GroupChatConsumer(AsyncJsonWebsocketConsumer):
-    
+    msgType = [CHAT_NAME_CHANGED, CHAT_PHOTO_CHANGED, MSG_TYPE_ADDED, MSG_TYPE_NORMAL, MSG_TYPE_REMOVED]
+
     async def connect(self):
         print("group chat consumer connect: " +str(self.scope['user']))
+        if self.scope['user'].is_anonymous:
+            await self.close()
         self.me = self.scope.get('user')
         await self.accept()
         self.room_id = self.scope['url_route']['kwargs']['groupThreadId']
@@ -502,6 +507,7 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
 
 
             elif command == "group_chat":
+                thread = await get_group_thread_or_error(self.group_chat_thread.id,self.scope['user'])
                 message = content.get("message")
                 message_type = content['message_type']
                 print("yo message",message)
@@ -563,6 +569,7 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
                     raise ClientError(204,"Something went wrong while trying to fetch your contact's information.")
                 await self.display_progress_bar(False)
             if command == "is_typing":
+                thread = await get_group_thread_or_error(self.group_chat_thread.id,self.scope['user'])
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
@@ -572,6 +579,8 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
                         "user": self.me.first_name,
                     }
                 )
+            if command == 'leave_group_chat':
+                return await self.close()
         except ClientError as e:
             await self.display_progress_bar(False)
             await self.handle_client_error(e)
@@ -602,6 +611,7 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
             'profile_image': event['profile_image'],
             'user_id': event['user_id'],
             'group_thread_id':self.room_id,
+            'msgTypeList':self.msgType,
         }))
         
     async def websocket_typing(self, event):
@@ -666,6 +676,7 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
                 "username":content['username'],
                 "new_chat_name":content['new_gc_name'],
                 "user_id":content['user_id'],
+                "msgTypeList": self.msgType,
             }
         )
     async def chat_photo_changed(self,event):
@@ -678,38 +689,60 @@ class GroupChatConsumer(AsyncJsonWebsocketConsumer):
                 "username":content['username'],
                 "new_chat_photo":content['new_gc_photo'],
                 "user_id":content['user_id'],
+                "msgTypeList": self.msgType,
             }
         )
 
     async def member_added(self,event):
         print("New member added")
         content = json.loads(event['content'])
-        if event['username']:
-            await self.send_json(
+        gc_thread = await sync_to_async(GroupChatThread.objects.get)(id = content['thread_id'])
+        data = await sync_to_async(get_group_chat_info)(gc_thread)
+        await self.send_json(
                 {
                     "msg_type": MSG_TYPE_ADDED,
                     "command": "group_chat",
-                    "thread_id":self.room_id,
-                    "username":content['username'],
-                    "profile_image":content['profile_image'],
-                    "user_id":content['user_id'],
+                    "action":content['action'],
+                    "added_members":content['added_members'],
+                    "members_info": json.loads(data)['group_chat_info'],
+                    "msgTypeList":self.msgType,
+                    "actionList":MEMBERS_ACTION,
                 }
             )
-
-    async def chat_leave(self,event):
+    async def member_removed(self,event):
+        content = json.loads(event['content'])
+        gc_thread =await sync_to_async( GroupChatThread.objects.get)(id = content['gc_thread_id'])
+        removee = content['removee']
+        data  = await sync_to_async(get_group_chat_info)(gc_thread)
+        await self.send_json(
+                {
+                    "msg_type": MSG_TYPE_REMOVED,
+                    "command": "group_chat",
+                    "members_info": json.loads(data)['group_chat_info'],
+                    "action":content['action'],
+                    "removee":removee,
+                    "msgTypeList": self.msgType,
+                    "actionList":MEMBERS_ACTION,
+                }
+            )
+        print("self channel name ",self.scope['user'])
+    async def group_chat_leave(self,event):
         print("Chat consumer: chat_leave")
         content = json.loads(event['content'])
-        if content['username']:
-            await self.send_json(
+        gc_thread = await sync_to_async(GroupChatThread.objects.get)(id = content['gc_thread_id'])
+        data = await sync_to_async(get_group_chat_info)(gc_thread)
+        await self.send_json(
                 {
                 "msg_type": MSG_TYPE_REMOVED,
                 "command":"group_chat",
-                "thread_id": self.room_id,
-                "username":content['username'],
-                "profile_image": content['profile_image'],
-                "user_id": content['user_id'],
+                "members_info": json.loads(data)['group_chat_info'],
+                "action":content['action'],
+                "left_user":content['left_user'],
+                "msgTypeList": self.msgType,
+                "actionList":MEMBERS_ACTION,
                 }
             )
+
 
     async def display_progress_bar(self,is_displayed):
         print("DIsplay progress bar",is_displayed)
@@ -772,7 +805,6 @@ def get_group_chat_info(thread):
         raise ClientError("DATA_ERROR"," Unable to get the group chat information.")
     return None
 
-
 @database_sync_to_async
 def get_group_thread_messages_data(thread,page_number):
     try:
@@ -809,6 +841,49 @@ class ThreadListUpdateConsumer(AsyncJsonWebsocketConsumer):
             )
     
     async def thread_update(self,event):
+        print("Method is being called")
+        content = event['content']
+        
+        print("its me thread event",content)
+        await self.send_json({
+            "thread_details":content,
+            
+        })
+
+    async def members_ui_update(self,event):
+        content = event['content']
+        # gc_thread = await sync_to_async(GroupChatThread.objects.get)(id = content['gc_thread_id'])
+        # print("gc thread members",gc_thread)
+        # group_info = await sync_to_async(get_group_chat_info)(gc_thread)
+        await self.send_json({
+            "user_action":content,
+        })
+
+    async def disconnect(self, close_code):
+        me = self.scope['user']
+        if self.room_group_name and self.channel_name:
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name,
+            )
+
+
+
+class IndividualConsumer(AsyncJsonWebsocketConsumer):
+    async def connect(self):
+        print("individual consumer connect: " +str(self.scope['user']))
+        self.me = self.scope.get('user')
+        await self.accept()
+        self.room_id = self.scope['url_route']['kwargs']['uid']
+        self.room_group_name = f'threadlist_update_{self.room_id}'
+        print("threadlist update is ",self.room_group_name)
+
+        await self.channel_layer.group_add(
+                self.room_group_name,
+                self.channel_name
+            )
+    
+    async def status_update(self,event):
         content = event['content']
         print("its me thread event",content)
         await self.send_json({

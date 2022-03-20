@@ -19,22 +19,23 @@ from friends.models import FriendList
 from .forms import GroupChatCreationForm
 from .models import GroupChatThread, Keys, PrivateChatMessage, PrivateChatThread
 from itertools import chain
-from .serializers import PrivateChatThreadSerializer, GroupChatThreadSerializer
+from .serializers import PrivateChatThreadSerializer, GroupChatThreadSerializer, UserSerializer
 from rest_framework.response import Response
 from rest_framework import viewsets
 from operator import attrgetter
 from .consumers import generate_shared_keys
 from ChatApp import settings,broadcast
+from ChatApp.query_debugger import query_debugger
 import pytz
+from .models import GroupJoinedDate
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 import json
-
+from .utils import MEMBER_ADDED,MEMBER_REMOVED,GROUP_LEFT
 
 # Create your views here.
 
 DEBUG = False
-
 
 @login_required
 def chat_section(request):
@@ -175,6 +176,9 @@ def get_thread_or_error(thread_id, user):
         if not thread.second_user in friend_list:
             raise ClientError("ACCESS_DENIED", "You must be friends to chat.")
     return thread
+
+
+    
 @login_required
 def create_or_return_private_chat(request, *args,**kwargs):
     first_user = request.user
@@ -246,7 +250,7 @@ def add_member_search(request,*args, **kwargs):
             'data':result
         })
     else:
-        return HttpResponse("No you can't do this")
+        return HttpResponse("Bad request ",504)
 
 def get_group_members(group_id=None, group_obj=None, user=None):
     
@@ -323,6 +327,8 @@ def create_group_chat(request,*args,**kwargs):
             print("naya thread ko id",gc_thread.id)
             this_group = Group.objects.get(id = gc_thread.id)
             gc_thread.add_members(this_group,users)
+            records = [{"gc":gc_thread,"user":u} for u in users]
+            GroupJoinedDate.objects.bulk_create([GroupJoinedDate(**values) for values in records])
             data['status'] = 'Created'
             #threadlist_update_
             #thread_update
@@ -344,21 +350,6 @@ def create_group_chat(request,*args,**kwargs):
         return JsonResponse("testing",safe=False)
     else:
         return HttpResponse("Not allowed")
-
-# def test_thread(request):
-#     current_user = request.user
-#     d = thread_details(current_user.id)
-#     consumer_method_name = 'thread_update'
-#     room_group_name = f'threadlist_update_{current_user.id}'
-#     async_to_sync(channel_layer.group_send)(
-#         room_group_name,
-#         {
-#             "type":consumer_method_name,
-#             "content":d,
-#         }
-#     )
-#     # broadcast.perform_broadcast(d,room_group_name,consumer_method_name)
-#     return JsonResponse({"status":"test_thread"})
 
 def thread_details(u_id):
     current_user = CustomUser.objects.get(id = u_id)
@@ -424,13 +415,35 @@ def add_members_to_chat(request,*args,**kwargs):
         members_list_id = members_list_id.split(',')
         try:
             users = CustomUser.objects.filter(id__in = members_list_id)
+            gc_thread = GroupChatThread.objects.get(pk = thread_id)
+            this_group = Group.objects.get(id = gc_thread.id)
+            gc_thread.add_members(this_group,users)
+            records = [{"gc":gc_thread,"user":u} for u in users]
+            GroupJoinedDate.objects.bulk_create([GroupJoinedDate(**values) for values in records])
+            # joined_dates = GroupJoinedDate.objects.filter(gc = gc_thread,user__in = members_list_id).select_related('gc')
+            # [{"user_id":d.user.id,"group_name":d.gc.group_name,"group_id":d.gc.group_id,"username":d.user.username,"joined_date":d.joined_date} for d in joined_dates]
+            # print("joined_dates",joined_dates)
+            consumer_method_name = 'thread_update'
+            channel_layer = get_channel_layer()
+            for id in members_list_id:
+                room_group_name = f'threadlist_update_{id}'
+                data['thread_details'] = thread_details(id)
+                print(room_group_name)
+                async_to_sync(channel_layer.group_send)(
+                    room_group_name,
+                    {
+                        "type":consumer_method_name,
+                        "content":data['thread_details'],
+                    }
+                )
+            data['action'] = MEMBER_ADDED
+            serializer = UserSerializer(users,many = True)
+            data['added_members'] = serializer.data
+            data['thread_id'] = thread_id
+            broadcast.perform_broadcast(data,f'group_chat_{thread_id}','member_added')
+            return JsonResponse(data)
         except CustomUser.DoesNotExist:
-            return JsonResponse({"response":"No such user exist."})
-        gc_thread = GroupChatThread.objects.get(pk = thread_id)
-        this_group = Group.objects.get(id = gc_thread.id)
-        gc_thread.add_members(this_group,users)
-        data['status'] = "added"
-        return JsonResponse(data)
+            return JsonResponse({"response":"No such user exist."})       
     else:
         return HttpResponse("No you can't do such things")
 
@@ -444,11 +457,20 @@ def remove_group_member(request,*args,**kwargs):
         gc_thread = GroupChatThread.objects.get(pk = group_id)
         admin_id = gc_thread.admin.id
         print("admin id",admin_id)
+        data = {}
         if current_user.id == admin_id:
             removee = CustomUser.objects.get(id = removee_id)
             if removee in gc_thread.user_set.all().exclude(id = current_user.id):
                 print("present in group",removee)
-                return JsonResponse({"response":"can remove"})
+                removee.grp_joined_user.filter(gc= gc_thread).delete()
+                gc_thread.user_set.remove(removee)
+                room_group_name = f'group_chat_{gc_thread.id}'
+                consumer_method_name = 'member_removed'
+                data['gc_thread_id'] = gc_thread.id
+                data['removee'] = {'first_name':removee.first_name,'last_name':removee.last_name,'username':removee.username}
+                data['action'] = MEMBER_REMOVED
+                broadcast.perform_broadcast(data,room_group_name,consumer_method_name)
+                return JsonResponse({"response":"Member removed"})
             else:
                 return JsonResponse({"response":"Invalid action"})
         else:
@@ -465,12 +487,46 @@ def leave_group(request,*args,**kwargs):
         ordered_group_members = gc_thread.user_set.all().order_by('date_joined')
         group_members = gc_thread.user_set.all()
         print("ordered group_members",ordered_group_members)
+        room_group_name = f'group_chat_{gc_thread.id}'
+        consumer_method_name = 'group_chat_leave'
+        data = {}
         if current_user in group_members:
-            # group_members.remove(current_user)
+            gc_thread.user_set.remove(current_user)
+            current_user.grp_joined_user.filter(gc= gc_thread).delete()
+            data['gc_thread_id'] = gc_thread.id
+            data['action'] = GROUP_LEFT
+            data['left_user'] = UserSerializer(current_user).data
             if current_user == gc_admin:
-                new_admin = group_members[1]
+                new_admin = GroupJoinedDate.objects\
+                    .filter(gc=gc_thread,user__in = group_members.exclude(id = current_user.id))\
+                        .select_related('user').order_by('joined_date').first().user
+                gc_thread.admin = new_admin
                 print("new admin",new_admin)
-                return JsonResponse({"new admin":[new_admin.username,"group left"]})
+                data['new_admin'] = UserSerializer(new_admin).data
+                # return JsonResponse({"new admin":[new_admin.username,"group left"]})
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                    f'threadlist_update_{current_user.id}',
+                    {
+                        "type":'members_ui_update',
+                        "content":'group_left',
+                    }
+                )
+            members_list_id = [user.id for user in group_members]
+            print("leave group chat ids list",members_list_id)
+            for id in members_list_id:
+                room_name = f'threadlist_update_{id}'
+                data['thread_details'] = thread_details(id)
+                print(room_group_name)
+                async_to_sync(channel_layer.group_send)(
+                    room_name,
+                    {
+                        "type":'thread_update',
+                        "content":data['thread_details'],
+                    }
+                )
+            broadcast.perform_broadcast(data,room_group_name,consumer_method_name)
+
             return JsonResponse({"response":"group left"})
         else:
             return JsonResponse({"response":"Invalid action"})

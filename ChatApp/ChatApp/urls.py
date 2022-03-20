@@ -30,5 +30,8 @@ urlpatterns = [
     path('register/',register_user, name="signup"),
     path("logout/", auth_views.LogoutView.as_view(next_page='login'), name="logout"),
 
+
+    #Debug toolbar
+    # path('__debug__/', include('debug_toolbar.urls')),
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root = settings.MEDIA_ROOT)
