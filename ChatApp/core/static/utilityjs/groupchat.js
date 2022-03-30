@@ -123,16 +123,17 @@ function groupChatWebSocketSetup(thread_id){
                                 icon: 'warning',
                                 title: 'You have been removed from the group'
                             })
-                        closegroupWebSocket();
                         clearOnLeave();
+                        closegroupWebSocket();
                         }else{
                             Toast.fire({
                                 icon: 'warning',
                                 title: `${members_info['admin_username']} has removed ${data.removee.first_name} from the group.`
                             })
+                        group_members_display(members_info['members'],members_info['admin_id'],members_info['admin_username'],members_info['thread_id']);
                         }
-                    }
-                    if(data.added_members){
+
+                    }else if(data.added_members){
                         data.added_members.forEach(member => {
                             if(member.username === logged_user['username']){
                                 Toast.fire({
@@ -148,14 +149,15 @@ function groupChatWebSocketSetup(thread_id){
                             }
                             
                         });
-                    }
-                    if(data.left_user){
+                    group_members_display(members_info['members'],members_info['admin_id'],members_info['admin_username'],members_info['thread_id']);
+
+                    }else if(data.left_user){
                         Toast.fire({
                             icon: 'warning',
                             title: `${data.left_user.first_name} ${data.left_user.last_name} has left the group.`
                         })
-                    }
                     group_members_display(members_info['members'],members_info['admin_id'],members_info['admin_username'],members_info['thread_id']);
+                    }
                 }
             
             console.log("hey there")
@@ -254,6 +256,7 @@ function clearOnLeave(){
     document.getElementById('topbar_otheruser_name').textContent = '';
     document.getElementById('topbar_otheruser_name').href ='#';
     document.getElementById('topbar_otheruser_name').removeAttribute('data-other_user_id');
+    document.getElementById('topbar_otheruser_name').removeAttribute('data-group_thread_id');
     document.getElementById('topbar_otheruser_name').removeAttribute('data-pvt_thread_id');
     document.getElementById('topbar_otheruser_name').dataset.group_thread_id = '';
 
@@ -264,7 +267,9 @@ function clearOnLeave(){
     document.getElementById('change_group_name').setAttribute("value",'');
     document.getElementById('change_group_name').setAttribute("data-threadid",'');
     $('#group_members').html('');
+    console.log("clear on leave called")
     $('#group_members_wrapper').addClass('d-none');
+    console.log("clear on leave called after d-none")
     let image = '/media/user_photos/nouser.jpg'
     preloadImage(image, 'other_user_profile_image')
     preloadImage(image,'topbar_otheruser_image')

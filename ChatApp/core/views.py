@@ -501,6 +501,7 @@ def leave_group(request,*args,**kwargs):
                     .filter(gc=gc_thread,user__in = group_members.exclude(id = current_user.id))\
                         .select_related('user').order_by('joined_date').first().user
                 gc_thread.admin = new_admin
+                gc_thread.save()
                 print("new admin",new_admin)
                 data['new_admin'] = UserSerializer(new_admin).data
                 # return JsonResponse({"new admin":[new_admin.username,"group left"]})
