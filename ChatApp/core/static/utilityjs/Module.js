@@ -33,4 +33,3 @@ const OnGetOrCreateChatroomSuccess = (u_id)=>{
     // window.open(url) // for new tab
     win.focus()
 }
-export default redirectToChat;

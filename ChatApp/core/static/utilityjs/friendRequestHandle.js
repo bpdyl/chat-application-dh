@@ -1,6 +1,3 @@
-import redirectToChat from "./Module.js"
-
-
 //Constants for comparing the request status
 const SEND_REQUEST_SUCCESS = "Friend request has been sent."
 const REQUEST_ERROR = "Something went wrong."
